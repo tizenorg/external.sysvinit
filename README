@@ -1,0 +1,8 @@
+
+contrib		Unofficial stuff
+doc		Documentation, mostly obsolete
+man		Manual pages, not obsolete
+obsolete	Really obsolete stuff ;)
+src		Source code
+
+Send patches to initscripts-ng-devel@lists.alioth.debian.org.

@@ -1,0 +1,17 @@
+10_doc_manuals.dpatch
+11_doc_shutdown-c.dpatch
+14_doc_fsf_addr.dpatch
+21_ifdown_kfreebsd.dpatch
+46_pidof_symlinkman.dpatch
+50_bootlogd_devsubdir.dpatch
+54_bootlogd_findptyfail.dpatch
+55_bootlogd_flush.patch
+60_init_selinux_ifdef.dpatch
+62_init_freebsdterm.dpatch
+63_init_keep_utf8_ttyflag.patch
+70_compiler_warnings.dpatch
+91_sulogin_lockedpw.dpatch
+94_fstab-decode.dpatch
+96_shutdown_acctoff.dpatch
+97_init_starttest.dpatch
+98_installtarget.patch

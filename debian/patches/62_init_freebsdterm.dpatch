@@ -1,0 +1,22 @@
+Purpose: Make sure TERM is set on FreeBSD.  Closes debian bug #335023.
+Authour: Robert Millan
+Fixes:   #335023
+Status:  unknown
+
+--- a/src/init.c
++++ b/src/init.c
+@@ -694,6 +694,14 @@
+ 		return;
+ 	}
+ 
++#ifdef __FreeBSD_kernel__
++	/* The kernel of FreeBSD expects userland to set TERM.  Usualy, we want
++	"cons25".  Later, gettys might disagree on this (i.e. we're not using
++	syscons) but some boot scripts, like /etc/init.d/xserver-xorg, still
++	need a non-dumb terminal. */
++	putenv ("TERM=cons25");
++#endif
++
+ 	(void) tcgetattr(fd, &tty);
+ 
+ 	tty.c_cflag &= CBAUD|CBAUDEX|CSIZE|CSTOPB|PARENB|PARODD;
