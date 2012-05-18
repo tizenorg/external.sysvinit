@@ -73,7 +73,7 @@ Requires: /usr/sbin/update-rc.d
 %doc_package
 
 %prep
-%setup -q -n %{name}-%{version}dsf
+%setup -q -n %{name}-%{version}
 
 %patch0 -p1 -b .ifdown_kfreebsd
 %patch1 -p1 -b .bootlogd_devsubdir
