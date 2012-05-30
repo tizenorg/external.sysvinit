@@ -12,6 +12,7 @@ Source: %{name}-%{version}dsf.tar.gz
 Source1: inittab
 Source2: update-rc.d
 Source3: service
+Source1001: packaging/sysvinit.manifest 
 
 Patch0: 21_ifdown_kfreebsd.patch
 Patch1: 50_bootlogd_devsubdir.patch
@@ -95,6 +96,7 @@ Requires: /usr/sbin/update-rc.d
 %patch17 -p1
 
 %build
+cp %{SOURCE1001} .
 make -C src
 make -C startpar
 
@@ -347,6 +349,7 @@ rm -rf $RPM_BUILD_ROOT
 %docs_package
 
 %files
+%manifest sysvinit.manifest
 %defattr(-,root,root)
 /bin/pidof
 /sbin/init
@@ -361,6 +364,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_includedir}/initreq.h
 
 %files utils
+%manifest sysvinit.manifest
 /sbin/bootlogd
 /sbin/fstab-decode
 /sbin/killall5
@@ -372,6 +376,7 @@ rm -rf $RPM_BUILD_ROOT
 /usr/bin/mesg
 
 %files -n sysv-rc
+%manifest sysvinit.manifest
 %doc %{_sysconfdir}/rc0.d/README
 %doc %{_sysconfdir}/rc1.d/README
 %{_sysconfdir}/rc2.d/README
@@ -386,6 +391,7 @@ rm -rf $RPM_BUILD_ROOT
 
 
 %files -n initscripts
+%manifest sysvinit.manifest
 %{_sysconfdir}/init.d/*
 %{_sysconfdir}/init.d/.slp
 %{_sysconfdir}/default/*
