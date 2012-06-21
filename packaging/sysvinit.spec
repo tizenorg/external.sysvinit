@@ -32,6 +32,7 @@ Patch14: always_use_lcrypt.patch
 Patch15: dont_set_ownership.patch
 Patch16: add_initscripts.patch
 Patch17: add_sysvrc.patch
+Patch18: 0001-Fixing-syntax-error-in-start-stop-daemon.c.patch
 
 %description
 The sysvinit package contains a group of processes that control
@@ -74,7 +75,7 @@ Requires: /usr/sbin/update-rc.d
 %doc_package
 
 %prep
-%setup -q -n %{name}-%{version}
+%setup -q -n %{name}-%{version}dsf
 
 %patch0 -p1 -b .ifdown_kfreebsd
 %patch1 -p1 -b .bootlogd_devsubdir
@@ -94,6 +95,7 @@ Requires: /usr/sbin/update-rc.d
 %patch15 -p1 -b .dont_set_ownership
 %patch16 -p1
 %patch17 -p1
+%patch18 -p1
 
 %build
 cp %{SOURCE1001} .

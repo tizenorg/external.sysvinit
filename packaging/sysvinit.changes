@@ -1,0 +1,3 @@
+* Thu Jun 21 2012 Chris Leech <christopher.leech@linux.intel.com> - 2.87
+- patch to fix compile of start-stop-daemon from OBS was missing in git
+
