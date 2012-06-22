@@ -1,3 +1,6 @@
+* Fri Jun 22 2012 Prajwal Mohan <prajwal.karur.mohan@intel.com> - 2.87
+- Removing insserv from Requires
+
 * Thu Jun 21 2012 Chris Leech <christopher.leech@linux.intel.com> - 2.87
 - patch to fix compile of start-stop-daemon from OBS was missing in git
 

@@ -54,7 +54,8 @@ Provides: /usr/sbin/service
 %package -n sysv-rc
 Summary: System-V-like runlevel change mechanism
 Group: System/Base
-Requires: sysvinit-utils, insserv
+#Requires: sysvinit-utils, insserv
+Requires: sysvinit-utils
 
 %description -n sysv-rc
  This package provides support for the System-V like system
