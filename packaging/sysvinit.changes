@@ -1,6 +1,22 @@
-* Fri Jun 22 2012 Prajwal Mohan <prajwal.karur.mohan@intel.com> - 2.87
+* Fri Jun 22 2012 Anas Nashif <anas.nashif@intel.com> 20120622.1@c1b298c
+- fixed tarball naming
+[ Prajwal Mohan ]
 - Removing insserv from Requires
 
-* Thu Jun 21 2012 Chris Leech <christopher.leech@linux.intel.com> - 2.87
-- patch to fix compile of start-stop-daemon from OBS was missing in git
+* Thu Jun 21 2012 Chris Leech <christopher.leech@linux.intel.com> 20120622.1@60c6658
+- missing build fix patch from OBS
+
+* Wed May 30 2012 Ryan Ware <ryan.r.ware@intel.com> 20120622.1@60809e2
+- Add default Smack manifest for sysvinit.spec
+
+* Fri May 18 2012 Yang Lin <lin.a.yang@intel.com> 20120622.1@667d061
+- clean tarball setup path to facilitate hudson automation submission
+
+* Sun Apr 29 2012 Kim Kibum <kb0929.kim@samsung.com> 20120622.1@6c19901
+- upload tizen1.0 source
+
+* Fri Jan 06 2012 Kibum Kim <kb0929.kim@samsung.com> 20120622.1@9b6e30c
+- Git init
+[ Eunkyoung Kim ]
+- Initial empty repository
 

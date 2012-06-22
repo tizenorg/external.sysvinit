@@ -8,7 +8,7 @@ Url: http://savannah.nongnu.org/projects/sysvinit
 
 Requires: /bin/cp
 
-Source: %{name}-%{version}dsf.tar.gz
+Source: %{name}-%{version}.tar.gz
 Source1: inittab
 Source2: update-rc.d
 Source3: service
@@ -73,10 +73,9 @@ Requires: /usr/sbin/update-rc.d
  The scripts in this package initialize a system at boot time
  and shut it down at halt or reboot time.
 
-%doc_package
 
 %prep
-%setup -q -n %{name}-%{version}dsf
+%setup -q 
 
 %patch0 -p1 -b .ifdown_kfreebsd
 %patch1 -p1 -b .bootlogd_devsubdir
@@ -345,15 +344,10 @@ EOF
 fi
 
 
-%clean
-rm -rf $RPM_BUILD_ROOT
-
-
 %docs_package
 
 %files
 %manifest sysvinit.manifest
-%defattr(-,root,root)
 /bin/pidof
 /sbin/init
 /sbin/halt
