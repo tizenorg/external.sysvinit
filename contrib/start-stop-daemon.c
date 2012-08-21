@@ -109,8 +109,8 @@ do_help(void)
 {
 	printf("\
 start-stop-daemon for Debian Linux - small and fast C version written by\n\
-Marek Michalkiewicz <marekm@i17linuxb.ists.pwr.wroc.pl>, public domain.\n\
-VERSION \n\
+Marek Michalkiewicz <marekm@i17linuxb.ists.pwr.wroc.pl>, public domain.\n"
+VERSION "\n\
 \n\
 Usage:
     start-stop-daemon -S|--start options ... -- arguments ...\n\

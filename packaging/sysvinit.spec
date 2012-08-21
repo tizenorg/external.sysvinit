@@ -31,6 +31,8 @@ Patch14: always_use_lcrypt.patch
 Patch15: dont_set_ownership.patch
 Patch16: add_initscripts.patch
 Patch17: add_sysvrc.patch
+Patch18: 64_init_add_cmd_for_reboot.dpatch
+Patch19: 0001-Fixing-syntax-error-in-start-stop-daemon.c.patch
 
 %description
 The sysvinit package contains a group of processes that control
@@ -43,6 +45,7 @@ of all other programs.
 Summary: System-V-like utilities
 Group: System/Base
 Provides: /usr/sbin/service
+Provides: /bin/pidof
 
 %description utils
  This package contains the important System-V-like utilities.
@@ -52,7 +55,7 @@ Provides: /usr/sbin/service
 %package -n sysv-rc
 Summary: System-V-like runlevel change mechanism
 Group: System/Base
-Requires: sysvinit-utils, insserv
+Requires: sysvinit-utils
 
 %description -n sysv-rc
  This package provides support for the System-V like system
@@ -93,6 +96,8 @@ Requires: /usr/sbin/update-rc.d
 %patch15 -p1 -b .dont_set_ownership
 %patch16 -p1
 %patch17 -p1
+%patch18 -p1
+%patch19 -p1
 
 %build
 make -C src
@@ -233,7 +238,8 @@ do
 	if [ ! -f "$F" ] && touch "$F" >/dev/null 2>&1
 	then
 		echo "(Nothing has been logged yet.)" >| "$F"
-		chown root:adm "$F"
+		# root UID is 0, adm GID is ordinary 4
+		chown 0:4 "$F"
 		chmod 640 "$F"
 	fi
 done
@@ -309,8 +315,9 @@ then
 	#
 	if ! mountpoint -q /dev
 	then
-		[ -d /dev/pts ] || { mkdir --mode=755 /dev/pts ; chown root:root /dev/pts || [ "$FAKECHROOT" = true ]; }
-		[ -d /dev/shm ] || { mkdir --mode=755 /dev/shm ; chown root:root /dev/shm || [ "$FAKECHROOT" = true ]; }
+		# root UID is 0
+		[ -d /dev/pts ] || { mkdir --mode=755 /dev/pts ; chown 0:0 /dev/pts || [ "$FAKECHROOT" = true ]; }
+		[ -d /dev/shm ] || { mkdir --mode=755 /dev/shm ; chown 0:0 /dev/shm || [ "$FAKECHROOT" = true ]; }
 	fi
 fi
 
@@ -348,7 +355,6 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root)
-/bin/pidof
 /sbin/init
 /sbin/halt
 /sbin/runlevel
@@ -361,6 +367,7 @@ rm -rf $RPM_BUILD_ROOT
 %{_includedir}/initreq.h
 
 %files utils
+/bin/pidof
 /sbin/bootlogd
 /sbin/fstab-decode
 /sbin/killall5

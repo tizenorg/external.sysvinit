@@ -1,0 +1,216 @@
+#! /bin/sh /usr/share/dpatch/dpatch-run
+## 64_init_add_cmd_for_reboot.dpatch by  <lpg@ubuntu>
+##
+## All lines beginning with `## DP:' are a description of the patch.
+## DP: No description.
+
+@DPATCH@
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' sysvinit~/src/halt.c sysvinit/src/halt.c
+--- sysvinit~/src/halt.c	2012-01-17 11:50:23.000000000 +0900
++++ sysvinit/src/halt.c	2012-01-17 15:48:10.765930225 +0900
+@@ -8,7 +8,7 @@
+  *		execute an "shutdown -r". This is for compatibility with
+  *		sysvinit 2.4.
+  *
+- * Usage:	halt [-n] [-w] [-d] [-f] [-h] [-i] [-p]
++ * Usage:	halt [-n] [-w] [-d] [-f] [-h] [-i] [-p] cmd
+  *		-n: don't sync before halting the system
+  *		-w: only write a wtmp reboot record and exit.
+  *		-d: don't write a wtmp record.
+@@ -16,7 +16,7 @@
+  *		-h: put harddisks in standby mode
+  *		-i: shut down all network interfaces.
+  *		-p: power down the system (if possible, otherwise halt).
+- *
++ *		cmd: command which delivered to reboot syscall.
+  *		Reboot and halt are both this program. Reboot
+  *		is just a link to halt. Invoking the program
+  *		as poweroff implies the -p option.
+@@ -51,6 +51,7 @@
+ 
+ char *Version = "@(#)halt  2.86  31-Jul-2004 miquels@cistron.nl";
+ char *progname;
++char *cmd;
+ 
+ #define KERNEL_MONITOR	1 /* If halt() puts you into the kernel monitor. */
+ #define RUNLVL_PICKY	0 /* Be picky about the runlevel */
+@@ -64,7 +65,7 @@
+  */
+ void usage(void)
+ {
+-	fprintf(stderr, "usage: %s [-n] [-w] [-d] [-f] [-h] [-i]%s\n",
++	fprintf(stderr, "usage: %s [-n] [-w] [-d] [-f] [-h] [-i] cmd%s\n",
+ 		progname, strcmp(progname, "halt") ? "" : " [-p]");
+ 	fprintf(stderr, "\t-n: don't sync before halting the system\n");
+ 	fprintf(stderr, "\t-w: only write a wtmp reboot record and exit.\n");
+@@ -72,6 +73,7 @@
+ 	fprintf(stderr, "\t-f: force halt/reboot, don't call shutdown.\n");
+ 	fprintf(stderr, "\t-h: put harddisks in standby mode.\n");
+ 	fprintf(stderr, "\t-i: shut down all network interfaces.\n");
++	fprintf(stderr, "\tcmd: command which delivered to reboot syscall.\n");
+ 	if (!strcmp(progname, "halt"))
+ 		fprintf(stderr, "\t-p: power down the system (if possible, otherwise halt).\n");
+ 	exit(1);
+@@ -148,6 +150,9 @@
+ 		args[i++] = tm;
+ 	}
+ 	args[i++] = "now";
++	if (cmd) {
++		args[i++] = cmd;
++	}
+ 	args[i++] = NULL;
+ 
+ 	execv("/sbin/shutdown", args);
+@@ -222,7 +227,11 @@
+ 				usage();
+ 		}
+ 	 }
+-	if (argc != optind) usage();
++
++	if (argc > optind +1) {
++		fprintf(stderr, "%s: too many arguments.\n", argv[0]);
++		usage();
++	}
+ 
+ 	if (geteuid() != 0) {
+ 		fprintf(stderr, "%s: must be superuser.\n", progname);
+@@ -231,6 +240,8 @@
+ 
+ 	(void)chdir("/");
+ 
++	cmd = argv[optind];
++
+ 	if (!do_hard && !do_nothing) {
+ 		/*
+ 		 *	See if we are in runlevel 0 or 6.
+@@ -265,7 +276,10 @@
+ 	if (do_nothing) exit(0);
+ 
+ 	if (do_reboot) {
+-		init_reboot(BMAGIC_REBOOT);
++		if (cmd)
++			syscall(__NR_reboot, LINUX_REBOOT_MAGIC1, LINUX_REBOOT_MAGIC2, LINUX_REBOOT_CMD_RESTART2, argv[optind]);
++		else
++			init_reboot(BMAGIC_REBOOT);
+ 	} else {
+ 		/*
+ 		 *	Turn on hard reboot, CTRL-ALT-DEL will reboot now
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' sysvinit~/src/init.c sysvinit/src/init.c
+--- sysvinit~/src/init.c	2012-01-17 11:50:23.000000000 +0900
++++ sysvinit/src/init.c	2012-01-17 15:48:35.505929530 +0900
+@@ -197,6 +197,7 @@
+ #define NR_EXTRA_ENV	16
+ char *extra_env[NR_EXTRA_ENV];
+ 
++char* initcmd_getenv(char *data);
+ 
+ /*
+  *	Sleep a number of seconds.
+@@ -915,6 +916,14 @@
+ 	/* Split up command line arguments */
+ 	buf[0] = 0;
+   	strncat(buf, proc, sizeof(buf) - 1);
++
++	char *opts = initcmd_getenv("INIT_OPTS");
++
++	if(!strncmp(ch->id, "rebt", 4) && opts) {
++		strncat(buf, " ", 1);
++		strncat(buf, opts, strlen(opts));
++	}
++
+   	ptr = buf;
+   	for(f = 1; f < 15; f++) {
+   		/* Skip white space */
+@@ -1946,6 +1955,24 @@
+ 	}
+ }
+ 
++char* initcmd_getenv(char *data)
++{
++	int i, j, sz;
++	char *ptr = NULL;
++
++	sz = strlen(data);
++
++	for (i = 0; i < NR_EXTRA_ENV; i++) {
++		if (extra_env[i] == NULL) continue;
++		if (!strncmp(extra_env[i], data, sz) &&
++		    extra_env[i][sz] == '=') {
++			ptr = &extra_env[i][sz+1];
++
++			return ptr;
++		}
++	}
++	return NULL;
++}
+ 
+ /*
+  *	Set/unset environment variables. The variables are
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' sysvinit~/src/reboot.h sysvinit/src/reboot.h
+--- sysvinit~/src/reboot.h	2012-01-17 11:50:23.000000000 +0900
++++ sysvinit/src/reboot.h	2012-01-17 15:48:40.141929398 +0900
+@@ -7,6 +7,8 @@
+  */
+ 
+ #include <sys/reboot.h>
++#include <linux/reboot.h>
++#include <sys/syscall.h>
+ 
+ #ifdef RB_ENABLE_CAD
+ #  define BMAGIC_HARD		RB_ENABLE_CAD
+diff -urNad '--exclude=CVS' '--exclude=.svn' '--exclude=.git' '--exclude=.arch' '--exclude=.hg' '--exclude=_darcs' '--exclude=.bzr' sysvinit~/src/shutdown.c sysvinit/src/shutdown.c
+--- sysvinit~/src/shutdown.c	2012-01-17 11:50:23.000000000 +0900
++++ sysvinit/src/shutdown.c	2012-01-17 15:51:32.121924563 +0900
+@@ -1,7 +1,7 @@
+ /*
+  * shutdown.c	Shut the system down.
+  *
+- * Usage:	shutdown [-krhfnc] time [warning message]
++ * Usage:	shutdown [-krhfnc] time [warning message] cmd
+  *		  -k: don't really shutdown, only warn.
+  *		  -r: reboot after shutdown.
+  *		  -h: halt after shutdown.
+@@ -10,6 +10,7 @@
+  *		  -n: do not go through init but do it ourselves.
+  *		  -c: cancel an already running shutdown.
+  *		  -t secs: delay between SIGTERM and SIGKILL for init.
++ *		  cmd: command which delivered to reboot syscall.
+  *
+  * Author:	Miquel van Smoorenburg, miquels@cistron.nl
+  *
+@@ -102,7 +103,7 @@
+ void usage(void)
+ {
+ 	fprintf(stderr,
+-	"Usage:\t  shutdown [-akrhHPfnc] [-t secs] time [warning message]\n"
++	"Usage:\t  shutdown [-akrhHPfnc] [-t secs] time [warning message] cmd\n"
+ 	"\t\t  -a:      use /etc/shutdown.allow\n"
+ 	"\t\t  -k:      don't really shutdown, only warn.\n"
+ 	"\t\t  -r:      reboot after shutdown.\n"
+@@ -114,7 +115,8 @@
+ 	"\t\t  -n:      do not go through \"init\" but go down real fast.\n"
+ 	"\t\t  -c:      cancel a running shutdown.\n"
+ 	"\t\t  -t secs: delay between warning and kill signal.\n"
+-	"\t\t  ** the \"time\" argument is mandatory! (try \"now\") **\n");
++	"\t\t  ** the \"time\" argument is mandatory! (try \"now\") **\n"
++	"\t\t cmd: command which delivered to reboot syscall.\n");
+ 	exit(1);
+ }
+ 
+@@ -595,6 +597,16 @@
+   		strcat(message, argv[c]);
+   		strcat(message, " ");
+ 	}
++
++	if (message[0]) {
++		char *opts = malloc(strlen(message));
++		strncpy(opts, message, strlen(message)-1);
++		opts[strlen(message)-1] = 0;
++		if (opts) {
++			init_setenv("INIT_OPTS", opts);
++		}
++	}
++
+ 	if (message[0]) strcat(message, "\r\n");
+ 
+ 	/* See if we want to run or cancel. */

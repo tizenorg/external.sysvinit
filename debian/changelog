@@ -1,3 +1,12 @@
+sysvinit (2.87dsf-8slp2+s5) unstable; urgency=low
+
+  [ dongil01.park ]
+  * SLP add patch for supporting command with reboot.
+  * Git: slp/pkgs/s/sysvinit
+  * Tag: sysvinit_2.87dsf-8slp2+s5
+
+ -- Karol Lewandowski <k.lewandowsk@samsung.com>  Wed, 18 Jan 2012 12:13:21 +0100
+
 sysvinit (2.87dsf-8slp2+s4) unstable; urgency=low
 
   * Bring sysvinit's postinst script back

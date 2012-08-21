@@ -9,6 +9,7 @@
 60_init_selinux_ifdef.dpatch
 62_init_freebsdterm.dpatch
 63_init_keep_utf8_ttyflag.patch
+64_init_add_cmd_for_reboot.dpatch
 70_compiler_warnings.dpatch
 91_sulogin_lockedpw.dpatch
 94_fstab-decode.dpatch
