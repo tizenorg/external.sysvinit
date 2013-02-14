@@ -1,0 +1,3261 @@
+diff -ruN sysvinit-2.87dsf/sysv-rc/doc/README.Debian sysvinit/sysv-rc//doc/README.Debian
+--- sysvinit-2.87dsf/sysv-rc/doc/README.Debian	1970-01-01 09:00:00.000000000 +0900
++++ sysvinit/sysv-rc//doc/README.Debian	2011-07-26 02:28:52.517000846 +0900
+@@ -0,0 +1,46 @@
++README for sysv-rc
++------------------
++
++Policy requires that maintainer scripts use update-rc.d to register and
++deregister initscripts.  An unfortunate result of this policy, combined
++with shortcomings in current update-rc.d implementations, is that there
++is no way for maintainer scripts to change the sequence number of an
++initscript that has already been registered if and only if its sequence
++number has not been changed by the administrator.  update-rc.d *never*
++changes the sequence number of an already registered initscript, even
++if its sequence number has not been changed by the administrator.
++There are no plans to fix this problem.  Therefore, if it is necessary
++to change the sequence number of an initscript in order to fix a bug
++then the maintainer script should go ahead and do:
++
++    update-rc.d -f <scriptname> remove
++
++before the new update-rc.d call, even though this overrides out any
++administrator changes.
++
++Migrating to dependency-based boot sequencing
++---------------------------------------------
++
++Migrating to the dependency-based system of boot sequencing (using LSB
++headers) is non-reversible, and renders obsolete the legacy system of
++static sequence numbers. Please note that any boot sequence changes
++made locally will be lost in the migration, and must be reimplemented
++in terms of dependencies. However, the new system is recommended for
++several reasons.
++
++ * initscripts can be made to run more efficiently via parallelized
++   execution strategies (see $POINTER_TO_ENTICING_BOOTCHARTS);
++ * boot and shutdown ordering is calculated on the basis of the
++   dependency information declared within each init.d script, ensuring
++   that the sequence is optimized for the set of packages installed;
++ * problems introduced by new or upgraded packages can be detected and
++   averted - the boot sequence is only modified if it is safe to do
++   so.
++
++It can also bring benefits for Debian package development, and for
++admins maintaining local software, since it eliminates the difficulty
++of fitting an initscript into the boot sequence between existing
++services with adjacent sequence numbers.
++
++It is also a step in the direction of boot systems better suited to
++the asynchronous nature of the Linux-2.6 kernel boot process.
+diff -ruN sysvinit-2.87dsf/sysv-rc/doc/README.invoke-rc.d sysvinit/sysv-rc//doc/README.invoke-rc.d
+--- sysvinit-2.87dsf/sysv-rc/doc/README.invoke-rc.d	1970-01-01 09:00:00.000000000 +0900
++++ sysvinit/sysv-rc//doc/README.invoke-rc.d	2011-07-26 02:28:52.517000846 +0900
+@@ -0,0 +1,135 @@
++
++
++This is the internal documentation for invoke-rc.d, as
++written by Henrique M Holschuh <hmh@debian.org>
++
++This document can be found on the web as well at
++http://people.debian.org/~hmh/invokerc.d-policyrc.d-specification.txt
++
++There is also the Debian BTS entry for the invoke-rc.d policy change at
++http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=76868
++
++
++INVOKE-RC.D (/usr/sbin/invoke-rc.d) interface:
++==============================================
++
++The interface for all implementations of invoke-rc.d is mandated by the base
++implementation in the sysvinit package, just like it is done for
++update-rc.d.
++
++There is a provision for a "local initscript policy layer" (read: a call to
++/usr/sbin/policy-rc.d if this executable is present in the local system),
++which allows the local system administrator to control the behaviour of
++invoke-rc.d for every initscript id and action. It is assumed that this
++script is OPTIONAL and will by written and provided by packages other than
++the initscript system (sysvinit and file-rc packages).
++
++The basic interface for all implementations of policy-rc.d is mandated by
++the requirements of the base implementation of invoke-rc.d. This interface
++will be described either in the manpage of invoke-rc.d, and in a text file
++stored in /usr/share/doc/sysvinit/ by package sysvinit (which will host the
++base implementation of invoke-rc.d).
++
++Proposed script interfaces:
++
++invoke-rc.d [options] <basename> <action> [extra initscript parameters...]
++
++  basename - Initscript ID, as per update-rc.d(8)
++  action   - Initscript action. Known actions are:
++                start, [force-]stop, restart,
++                [force-]reload, status
++  (status is there because of the LSB. Debian does not use it).
++
++  extra initscript parameters: These parameters are passed to the initscript
++  as is, after the action parameter. <action> is always the first paramenter
++  to the initscript, and may be modified by fallback actions or policy-rc.d
++  requests. Note, however, that the extra parameters are not dropped or
++  modified even if the action (first parameter) is modified.
++
++Options:
++
++ --quiet
++     Quiet mode, no error messages are generated by invoke-rc.d; policy-rc.d
++     is also called with --quiet if this option is in effect.
++
++ --force
++     Try to run init script regardless of policy and non-fatal errors. Use
++     of this option in automated scripts is severely discouraged as it
++     bypasses integrity checks. If the initscript cannot be executed, error
++     status 102 is returned. Do note that the policy layer call
++     (policy-rc.d) is NOT skipped, although its results are ignored.
++
++ --try-anyway
++     Try to run the initscript even if a non-fatal subsystem error is
++     detected (e.g: bad rc.d symlinks). A 102 status exit code will result
++     if init script fails to execute anyway). Unlike --force, policy is
++     still enforced with --try-anyway.
++
++ --disclose-deny
++     Return status code 101 instead of status code 0 if initscript action is
++     denied by local policy rules or runlevel constrains. An warning is
++     generated if the action is denied.
++
++ --query
++     Returns one of status codes 100-106, does not execute the init.d
++     script. Implies --disclose-deny and --nofallback.  Status codes 104-106
++     are only generated by this option.
++
++     Note many messages are still sent to stderr in --query mode, including
++     those regarding policy overrides and subsystem errors. Use --quiet if
++     silent --query operation is desired.
++
++ --no-fallback 
++     The policy layer (policy-rc.d) may return fallback actions to be run
++     instead of the requested action. If this option is active, a fallback
++     action request will be ignored and a "action not allowed" reply used in
++     its place. This is probably a BAD idea unless you know exactly what
++     you're doing.
++
++  --help
++     Outputs help message to stdout
++
++Unknown actions may generate warnings, but are passed to the underlying
++initscript anyway. The reason for the warning is simple: It is very unlikely
++that an unknown action (by invoke-rc.d) will be known to the policy layer
++(policy-rc.d), and therefore it may cause an initscript to execute an action
++which the local system administrator would have not allowed had he known
++about it. If policy-rc.d is not present, no warnings for unknown actions
++are generated.
++
++Should an initscript be executed, invoke-rc.d ALWAYS returns the status code
++returned by the initscript. Initscripts should not return status codes in
++the 100+ range (this is also a LSB requirement).
++
++Exit status codes (LSB compatible):
++  0      : success 
++	   either the init script was run and returned exit status 0 (note
++	   that a fallback action may have been run instead of the one given
++	   in the command line), or it was not run because of runlevel/local
++	   policy constrains and --disclose-deny is not in effect.
++  1 - 99 : reserved for init.d script
++ 100     : init script ID (basename) unknown
++	   init script not registered sucessfully through 
++	   update-rc.d or init script does not exist.
++	   This error is fatal for most initscript systems.
++ 101     : action not allowed
++	   requested action will not be performed because of 
++	   runlevel or local policy constrains, and 
++	   --disclose-deny is in effect. Note that a fallback
++	   action is NOT considered "action not allowed",
++	   unless --nofalback is in effect.
++ 102	 : subsystem error
++	   initscript (or policy) subsystem malfuncion.
++	   (e.g. broken /sbin/runlevel).
++	   Also, forced initscript execution due to 
++	   --try-anyway or --force failed.
++ 103	 : syntax error
++ 104	 : action allowed
++	   --query is in effect; init script would be run if
++	   not for --query.
++ 105	 : behaviour uncertain
++	   cannot determine if action should be carried out or 
++	   not, and --query in effect.
++ 106     : fallback action requested
++	   the policy layer denied the requested action, and
++	   supplied an allowed fallback action.
+diff -ruN sysvinit-2.87dsf/sysv-rc/doc/README.policy-rc.d sysvinit/sysv-rc//doc/README.policy-rc.d
+--- sysvinit-2.87dsf/sysv-rc/doc/README.policy-rc.d	1970-01-01 09:00:00.000000000 +0900
++++ sysvinit/sysv-rc//doc/README.policy-rc.d	2011-07-26 02:28:52.517000846 +0900
+@@ -0,0 +1,102 @@
++
++
++This is the internal documentation for policy-rc.d, as
++written by Henrique M Holschuh <hmh@debian.org>
++
++This document can be found on the web as well at
++http://people.debian.org/~hmh/invokerc.d-policyrc.d-specification.txt
++
++There is also the Debian BTS entry for the invoke-rc.d policy change at
++http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=76868
++
++
++POLICY-RC.D   Policy layer (/usr/sbin/policy-rc.d) interface:
++=============================================================
++
++Most Debian systems will not have this script as the need for a policy layer
++is not very common. Most people using chroot jails just need an one-line
++script which returns an exit status of 101 as the jailed
++/usr/sbin/policy-rc.d script.
++
++The /usr/sbin/policy-rc.d file *must* be managed through the alternatives
++system (/usr/sbin/update-alternatives) by any packages providing it.
++
++/usr/sbin/policy-rc.d [options] <initscript ID> <actions> [<runlevel>]
++/usr/sbin/policy-rc.d [options] --list <initscript ID> [<runlevel> ...]
++
++Options:
++ --quiet
++     no error messages are generated.
++
++ --list
++     instead of verifying policy, list (in a "human parseable" way) all
++     policies defined for the given initscript id (for all runlevels if no
++     runlevels are specified; otherwise, list it only for the runlevels
++     specified), as well as all known actions and their fallbacks for the
++     given initscript id (note that actions and fallback actions might be
++     global and not particular to a single initscript id).
++
++<actions> is a space-separated list of actions (usually only one). Note that
++the list is passed in a single parameter and not as multiple parameters.
++
++The following actions are always known (even if specifying a policy for them
++is not supported by whatever policy-rc.d system is in use): start,
++[force-]stop, restart, [force-]reload, status.
++
++If an out-of-runlevel start or restart attempt is detected by invoke-rc.d,
++the "start" or "restart" action will be changed to "(start)" or "(restart)"
++respectively. This allows policy-rc.d to differentiate an out-of-runlevel
++start/restart from a normal one.
++
++The runlevel parameters are optional. If a runlevel is not specified, it is
++considered to be unknown/undefined. Note that for sysv-like initscript
++systems, an undefined runlevel is very likely to cause a 105 exit status.
++
++A runlevel for update-rc.d is defined as a character string, of which the
++usual INIT one-character runlevels are only a subset. It may contain
++embedded blanks.
++
++ stdout is used to output a single line containing fallback actions,
++	   or to output --list results.
++ stderr is used to output error messages
++ stdin  is not to be used, this is not an interactive interface.
++
++ Exit status codes:
++  0 - action allowed
++  1 - unknown action (therefore, undefined policy)
++ 100 - unknown initscript id
++ 101 - action forbidden by policy
++ 102 - subsystem error
++ 103 - syntax error
++ 104 - [reserved]
++ 105 - behaviour uncertain, policy undefined.
++ 106 - action not allowed. Use the returned fallback actions
++       (which are implied to be "allowed") instead. 
++
++When in doubt (policy-rc.d returned status 105 or status 1), invoke-rc.d
++will assume an action is allowed, but it will warn the user of the problem.
++
++Returning fallback information:
++
++Fallback actions are returned in the first line sent to stdout (other lines
++will be discarded). Multiple actions to be tried are allowed, and must be
++separated by spaces. Multiple actions are carried out one at a time, until
++one is sucessful.
++
++e.g.: returning status 106 and "restart stop" in stdout (without
++the quotes) will cause invoke-rc.d to attempt action "restart",
++and then only if "restart" failed, attempt action "stop".
++
++invoke-rc.d built-in policy rules:
++
++To shield policy-rc.d of the underlying initscript system (file-rc, links in
++/etc/rc?.d or something else), invoke-rc.d implements the following built-in
++rules:
++
++  1. action "start" out of runlevel is denied,
++     (policy-rc.d receives action "(start)" instead of "start");
++  2. action "restart" out of runlevel is denied,
++     (policy-rc.d receives action "(restart)" instead of "restart");
++  3. any action for a non-executable initscript is denied.
++
++Rule 3 is absolute, policy-rc.d cannot override it.
+diff -ruN sysvinit-2.87dsf/sysv-rc/doc/README.runlevels sysvinit/sysv-rc//doc/README.runlevels
+--- sysvinit-2.87dsf/sysv-rc/doc/README.runlevels	1970-01-01 09:00:00.000000000 +0900
++++ sysvinit/sysv-rc//doc/README.runlevels	2011-07-26 02:28:52.517000846 +0900
+@@ -0,0 +1,103 @@
++
++		Order of scripts run in /etc/rc?.d
++		==================================
++
++0. Overview.
++
++   All scripts executed by the init system are located in /etc/init.d.
++   The directories /etc/rc?.d (? = S, 0 .. 6) contain relative links to
++   those scripts. These links are named S<2-digit-number><original-name>
++   or K<2-digit-number><original-name>.
++
++   If a scripts has the ".sh" suffix it is a bourne shell script and
++   MAY be handled in an optimized manner. The behaviour of executing the
++   script in an optimized way will not differ in any way from it being
++   forked and executed in the regular way.
++
++   The following runlevels are defined:
++
++   N       System bootup (NONE).
++   S       Single user mode (not to be switched to directly)
++   0       halt
++   1       single user mode
++   2 .. 5  multi user mode
++   6       reboot
++
++1. Boot.
++
++   When the systems boots, the /etc/init.d/rcS script is executed. It
++   in turn executes all the S* scripts in /etc/rcS.d in alphabetical
++   (and thus numerical) order. The first argument passed to the
++   executed scripts is "start". The runlevel at this point is "N" (none).
++
++   Only things that need to be run once to get the system in a consistent
++   state are to be run. The rcS.d directory is NOT meant to replace rc.local.
++   One should not start daemons in this runlevel unless absolutely
++   necessary. Eg, NFS might need the portmapper, so it is OK to start it
++   early in the bootprocess. But this is not the time to start the
++   squid proxy server.
++
++2. Going multiuser.
++
++   After the rcS.d scripts have been executed, init switches to the
++   default runlevel as specified in /etc/inittab, usually "2".
++
++   Init then executes the /etc/init.d/rc script which takes care of
++   starting the services in /etc/rc2.d.
++
++   Because the previous runlevel is "N" (none) the /etc/rc2.d/KXXxxxx
++   scripts will NOT be executed - there is nothing to stop yet,
++   the system is busy coming up.
++
++   If for example there is a service that wants to run in runlevel 4
++   and ONLY in that level, it will place a KXXxxxx script in
++   /etc/rc{2,3,5}.d to stop the service when switching out of runlevel 4.
++   We do not need to run that script at this point.
++   
++   The /etc.rc2.d/SXXxxxx scripts will be executed in alphabetical
++   order, with the first argument set to "start".
++
++3. Switching runlevels.
++
++   When one switches from (for example) runlevel 2 to runlevel 3,
++   /etc/init.d/rc will first execute in alphabetical order all K
++   scripts for runlevel 3 (/etc/rc3.d/KXXxxxx) with as first argument
++   "stop" and then all S scripts for runlevel 3 (/etc/rc3.d/SXXxxxx)
++   with as first argument "start".
++
++   As an optimization, a check is made for each "service" to see if
++   it was already running in the previous runlevel. If it was, and there
++   is no K (stop) script present for it in the new runlevel, there is
++   no need to start it a second time so that will not be done.
++
++   On the other hand, if there was a K script present, it is assumed the
++   service was stopped on purpose first and so needs to be restarted.
++
++   We MIGHT make the same optimization for stop scripts as well-
++   if no S script was present in the previous runlevel, we can assume
++   that service was not running and we don't need to stop it either.
++   In that case we can remove the "coming from level N" special case
++   mentioned above in 2). But right now that has not been implemented.
++
++4. Single user mode.
++
++   Switching to single user mode is done by switching to runlevel 1.
++   That will cause all services to be stopped (assuming they all have
++   a K script in /etc/rc1.d). The runlevel 1 scripts will then switch
++   to runlevel "S" which has no scripts - all it does is spawn
++   a shell directly on /dev/console for maintenance.
++
++5. Halt/reboot
++
++   Going to runlevel 0 or 6 will cause the system to be halted or rebooted,
++   respectively. For example, if we go to runlevel 6 (reboot) first
++   all /etc/rc6.d/KXXxxxx scripts will be executed alphabetically with
++   "stop" as the first argument.
++
++   Then the /etc/rc6.d/SXXxxxx scripts will be executed alphabetically
++   with "stop" as the first argument as well. The reason is that there
++   is nothing to start anymore at this point - all scripts that are
++   run are meant to bring the system down.
++
++   In the future, the /etc/rc6.d/SXXxxxx scripts MIGHT be moved to
++   /etc/rc6.d/K1XXxxxx for clarity.
+diff -ruN sysvinit-2.87dsf/sysv-rc/etc/init.d/rc sysvinit/sysv-rc//etc/init.d/rc
+--- sysvinit-2.87dsf/sysv-rc/etc/init.d/rc	1970-01-01 09:00:00.000000000 +0900
++++ sysvinit/sysv-rc//etc/init.d/rc	2011-07-26 02:28:52.517000846 +0900
+@@ -0,0 +1,346 @@
++#! /bin/sh
++#
++# rc
++#
++# Starts/stops services on runlevel changes.
++#
++# Optimization: A start script is not run when the service was already
++# configured to run in the previous runlevel.  A stop script is not run
++# when the the service was already configured not to run in the previous
++# runlevel.
++#
++# Authors:
++# 	Miquel van Smoorenburg <miquels@cistron.nl>
++# 	Bruce Perens <Bruce@Pixar.com>
++
++PATH=/sbin:/usr/sbin:/bin:/usr/bin
++export PATH
++
++# Un-comment the following for interactive debugging. Do not un-comment
++# this for debugging a real boot process as no scripts will be executed.
++# debug=echo
++
++# Specify method used to enable concurrent init.d scripts.
++# Valid options are 'none', 'startpar' and 'makefile'. To enable
++# the concurrent boot option, the init.d script order must allow for
++# concurrency.  This is not the case with the default boot sequence in
++# Debian as of 2008-01-20.  Before enabling concurrency, one need to
++# check the sequence values of all boot scripts, and make sure only
++# scripts that can be started in parallel have the same sequence
++# number, and that a scripts dependencies have a earlier sequence
++# number. See the insserv package for a away to reorder the boot
++# automatically to allow this.
++CONCURRENCY=none
++
++# Make sure the name survive changing the argument list
++scriptname="$0"
++
++umask 022
++
++on_exit() {
++	echo "error: '$scriptname' exited outside the expected code flow."
++}
++trap on_exit EXIT # Enable emergency handler
++
++# Ignore CTRL-C only in this shell, so we can interrupt subprocesses.
++trap ":" INT QUIT TSTP
++
++# Set onlcr to avoid staircase effect.
++stty onlcr 0>&1
++
++# Functions for splash progress bars
++if [ -e /lib/init/splash-functions-base ] ; then
++	. /lib/init/splash-functions-base
++else
++	# Quiet down script if old initscripts version without /lib/init/splash-functions-base is used.
++	splash_progress() { return 1; }
++	splash_stop() { return 1; }
++fi
++
++# Now find out what the current and what the previous runlevel are.
++
++runlevel=$RUNLEVEL
++# Get first argument. Set new runlevel to this argument.
++[ "$1" != "" ] && runlevel=$1
++if [ "$runlevel" = "" ]
++then
++	echo "Usage: $scriptname <runlevel>" >&2
++	exit 1
++fi
++previous=$PREVLEVEL
++[ "$previous" = "" ] && previous=N
++
++export runlevel previous
++
++if [ -f /etc/default/rcS ] ; then
++	. /etc/default/rcS
++fi
++export VERBOSE
++
++if [ -f /lib/lsb/init-functions ] ; then
++	. /lib/lsb/init-functions
++else
++	log_action_msg() { echo $@; }
++	log_failure_msg() { echo $@; }
++	log_warning_msg() { echo $@; }
++fi
++
++#
++# Stub to do progress bar ticks (for splash programs) on startup
++#
++startup_progress() {
++	# Avoid divide by zero if anyone moved xdm/kdm/gdm first in a runlevel.
++	if [ 0 -eq "$num_steps" ] ; then return; fi
++
++	step=$(($step + $step_change))
++	progress=$(($step * $progress_size / $num_steps + $first_step))
++	$debug splash_progress "$progress" || true
++}
++
++#
++# Check if we are able to use make like booting.  It require the
++# insserv package to be enabled. Boot concurrency also requires
++# startpar to be installed.
++#
++if [ "none" != "$CONCURRENCY" ] ; then
++	test -s /etc/init.d/.depend.boot  || CONCURRENCY="none"
++	test -s /etc/init.d/.depend.start || CONCURRENCY="none"
++	test -s /etc/init.d/.depend.stop  || CONCURRENCY="none"
++	startpar -v      > /dev/null 2>&1 || CONCURRENCY="none"
++fi
++
++#
++# Start script or program.
++#
++case "$CONCURRENCY" in
++	startpar|shell) # shell is obsolete
++		log_action_msg "Using startpar-style concurrent boot in runlevel $runlevel"
++		startup() {
++			action=$1
++			shift
++			scripts="$@"
++
++			# Update progress bar counter and jump to the new position
++			for script in $scripts ; do
++				step=$(($step + $step_change))
++			done
++
++			[ -n "$scripts" ] && $debug startpar -a $action $scripts
++
++			# Jump back one step to compencate for stepping one
++			# time too many in the for loop.
++			step=$(($step - $step_change))
++			startup_progress
++		}
++		;;
++	makefile)
++		log_action_msg "Using makefile-style concurrent boot in runlevel $runlevel"
++		# The splash API is not handled with this CONCURRENCY mode
++		startup() {
++			eval "$(startpar -p 4 -t 20 -T 3 -M $1 -P $previous -R $runlevel)"
++
++			if [ -n "$failed_service" ]
++			then
++				log_failure_msg "startpar: service(s) returned failure: $failed_service"
++			fi
++
++			if [ -n "$skipped_service" ]
++			then
++				log_warning_msg "startpar: service(s) skipped: $skipped_service"
++			fi
++
++			unset failed_service skipped_service
++		}
++		;;
++	none|*)
++		startup() {
++			action=$1
++			shift
++			scripts="$@"
++			for script in $scripts ; do
++				$debug "$script" $action
++				startup_progress
++			done
++		}
++		;;
++esac
++
++# Check if the splash screen should be stopped before the given
++# script.
++is_splash_stop_scripts() {
++	scriptname=$1
++	case "$scriptname" in
++		# killprocs is used in runlevel 1
++		gdm|xdm|kdm|ltsp-client|ltsp-client-core|reboot|halt|killprocs)
++			return 0
++			;;
++	esac
++	return 1
++}
++
++# Is there an rc directory for this new runlevel?
++if [ -d /etc/rc$runlevel.d ]
++then
++	# Find out where in the progress bar the initramfs got to.
++	PROGRESS_STATE=0
++	if [ -f /dev/.initramfs/progress_state ]; then
++		. /dev/.initramfs/progress_state
++	fi
++
++	# Split the remaining portion of the progress bar into thirds
++	progress_size=$(((100 - $PROGRESS_STATE) / 3))
++
++	case "$runlevel" in
++		0|6)
++			ACTION=stop
++			# Count down from 0 to -100 and use the entire bar
++			first_step=0
++			progress_size=100
++			step_change=-1
++			;;
++		S)
++			ACTION=start
++			# Begin where the initramfs left off and use 2/3
++			# of the remaining space
++			first_step=$PROGRESS_STATE
++			progress_size=$(($progress_size * 2))
++			step_change=1
++			;;
++		*)
++			ACTION=start
++			# Begin where rcS left off and use the final 1/3 of
++			# the space (by leaving progress_size unchanged)
++			first_step=$(($progress_size * 2 + $PROGRESS_STATE))
++			step_change=1
++			;;
++	esac
++
++	# Count the number of scripts we need to run
++	# (for progress bars)
++	num_steps=0
++	for s in /etc/rc$runlevel.d/[SK]*; do
++		if is_splash_stop_scripts "${s##/etc/rc$runlevel.d/S??}" ; then
++			break
++		fi
++		num_steps=$(($num_steps + 1))
++	done
++	step=0
++
++	if [ makefile = "$CONCURRENCY" ]
++	then
++		[ "$previous" != N ] && startup stop
++	# First, run the KILL scripts.
++	elif [ "$previous" != N ]
++	then
++		# Run all scripts with the same level in parallel
++		CURLEVEL=""
++		for s in /etc/rc$runlevel.d/K*
++		do
++			# Extract order value from symlink
++			level=${s#/etc/rc$runlevel.d/K}
++			level=${level%%[a-zA-Z]*}
++			if [ "$level" = "$CURLEVEL" ]
++			then
++				continue
++			fi
++			CURLEVEL=$level
++			SCRIPTS=""
++			for i in /etc/rc$runlevel.d/K$level*
++			do
++				# Check if the script is there.
++				[ ! -f $i ] && continue
++
++				#
++				# Find stop script in previous runlevel but
++				# no start script there.
++				#
++				suffix=${i#/etc/rc$runlevel.d/K[0-9][0-9]}
++				previous_stop=/etc/rc$previous.d/K[0-9][0-9]$suffix
++				previous_start=/etc/rc$previous.d/S[0-9][0-9]$suffix
++				#
++				# If there is a stop script in the previous level
++				# and _no_ start script there, we don't
++				# have to re-stop the service.
++				#
++				[ -f $previous_stop ] && [ ! -f $previous_start ] && continue
++
++				# Stop the service.
++				SCRIPTS="$SCRIPTS $i"
++				if is_splash_stop_scripts "$suffix" ; then
++					$debug splash_stop || true
++				fi
++			done
++			startup stop $SCRIPTS
++		done
++	fi
++
++	if [ makefile = "$CONCURRENCY" ]
++	then
++		if [ S = "$runlevel" ]
++		then
++			startup boot
++		else
++			startup $ACTION
++		fi
++	else
++		# Now run the START scripts for this runlevel.
++		# Run all scripts with the same level in parallel
++		CURLEVEL=""
++		for s in /etc/rc$runlevel.d/S*
++		do
++			# Extract order value from symlink
++			level=${s#/etc/rc$runlevel.d/S}
++			level=${level%%[a-zA-Z]*}
++			if [ "$level" = "$CURLEVEL" ]
++			then
++				continue
++			fi
++			CURLEVEL=$level
++			SCRIPTS=""
++			for i in /etc/rc$runlevel.d/S$level*
++			do
++				[ ! -f $i ] && continue
++
++				suffix=${i#/etc/rc$runlevel.d/S[0-9][0-9]}
++				if [ "$previous" != N ]
++				then
++					#
++					# Find start script in previous runlevel and
++					# stop script in this runlevel.
++					#
++					stop=/etc/rc$runlevel.d/K[0-9][0-9]$suffix
++					previous_start=/etc/rc$previous.d/S[0-9][0-9]$suffix
++					#
++					# If there is a start script in the previous level
++					# and _no_ stop script in this level, we don't
++					# have to re-start the service.
++					#
++					if [ start = "$ACTION" ] ; then
++						[ -f $previous_start ] && [ ! -f $stop ] && continue
++					else
++						# Workaround for the special
++						# handling of runlevels 0 and 6.
++						previous_stop=/etc/rc$previous.d/K[0-9][0-9]$suffix
++						#
++						# If there is a stop script in the previous level
++						# and _no_ start script there, we don't
++						# have to re-stop the service.
++						#
++						[ -f $previous_stop ] && [ ! -f $previous_start ] && continue
++					fi
++
++				fi
++				SCRIPTS="$SCRIPTS $i"
++				if is_splash_stop_scripts "$suffix" ; then
++					$debug splash_stop || true
++				fi
++			done
++			startup $ACTION $SCRIPTS
++		done
++	fi
++fi
++
++trap - EXIT # Disable emergency handler
++
++exit 0
++
+diff -ruN sysvinit-2.87dsf/sysv-rc/etc/init.d/rcS sysvinit/sysv-rc//etc/init.d/rcS
+--- sysvinit-2.87dsf/sysv-rc/etc/init.d/rcS	1970-01-01 09:00:00.000000000 +0900
++++ sysvinit/sysv-rc//etc/init.d/rcS	2011-07-26 02:28:52.517000846 +0900
+@@ -0,0 +1,8 @@
++#! /bin/sh
++#
++# rcS
++#
++# Call all S??* scripts in /etc/rcS.d/ in numerical/alphabetical order
++#
++
++exec /etc/init.d/rc S
+diff -ruN sysvinit-2.87dsf/sysv-rc/etc/init.d/README sysvinit/sysv-rc//etc/init.d/README
+--- sysvinit-2.87dsf/sysv-rc/etc/init.d/README	1970-01-01 09:00:00.000000000 +0900
++++ sysvinit/sysv-rc//etc/init.d/README	2011-07-26 02:28:52.517000846 +0900
+@@ -0,0 +1,35 @@
++	Configuration of System V init under Debian GNU/Linux
++
++Most Unix versions have a file here that describes how the scripts
++in this directory work, and how the links in the /etc/rc?.d/ directories
++influence system startup/shutdown.
++
++For Debian, this information is contained in the policy manual, chapter 
++"System run levels and init.d scripts".  The Debian Policy Manual is 
++available at:
++
++    http://www.debian.org/doc/debian-policy/#contents
++
++The Debian Policy Manual is also available in the Debian package
++"debian-policy".  When this package is installed, the policy manual can be
++found in directory /usr/share/doc/debian-policy. If you have a browser
++installed you can probably read it at
++
++    file://localhost/usr/share/doc/debian-policy/
++
++Some more detailed information can also be found in the files in the
++/usr/share/doc/sysv-rc directory.
++
++Debian Policy dictates that /etc/init.d/*.sh scripts must work properly
++when sourced.  The following additional rules apply:
++
++* /etc/init.d/*.sh scripts must not rely for their correct functioning
++  on their being sourced rather than executed.  That is, they must work
++  properly when executed too. They must include "#!/bin/sh" at the top.
++  This is useful when running scripts in parallel.
++
++* /etc/init.d/*.sh scripts must conform to the rules for sh scripts as
++  spelled out in the Debian policy section entitled "Scripts" (§10.4).
++
++Use the update-rc.d command to create symbolic links in the /etc/rc?.d
++as appropriate. See that man page for more details.
+diff -ruN sysvinit-2.87dsf/sysv-rc/etc/rc0.d/README sysvinit/sysv-rc//etc/rc0.d/README
+--- sysvinit-2.87dsf/sysv-rc/etc/rc0.d/README	1970-01-01 09:00:00.000000000 +0900
++++ sysvinit/sysv-rc//etc/rc0.d/README	2011-07-26 02:28:52.517000846 +0900
+@@ -0,0 +1,11 @@
++The scripts in this directory are executed once when entering 
++runlevel 0.
++
++The scripts are all symbolic links whose targets are located in
++/etc/init.d/ .
++
++Generally it is not necessary to alter the scripts in this directory.
++Their purpose is to stop all services and to make the system ready
++for shutdown.
++
++For more information see /etc/init.d/README.
+diff -ruN sysvinit-2.87dsf/sysv-rc/etc/rc1.d/README sysvinit/sysv-rc//etc/rc1.d/README
+--- sysvinit-2.87dsf/sysv-rc/etc/rc1.d/README	1970-01-01 09:00:00.000000000 +0900
++++ sysvinit/sysv-rc//etc/rc1.d/README	2011-07-26 02:28:52.518000841 +0900
+@@ -0,0 +1,11 @@
++The scripts in this directory are executed each time the system enters
++this runlevel.
++
++The scripts are all symbolic links whose targets are located in
++/etc/init.d/ .
++
++Generally it is not necessary to alter the scripts in this directory.
++Their purpose is to stop all services and thus to put the system in
++single-user mode.
++
++For more information see /etc/init.d/README.
+diff -ruN sysvinit-2.87dsf/sysv-rc/etc/rc6.d/README sysvinit/sysv-rc//etc/rc6.d/README
+--- sysvinit-2.87dsf/sysv-rc/etc/rc6.d/README	1970-01-01 09:00:00.000000000 +0900
++++ sysvinit/sysv-rc//etc/rc6.d/README	2011-07-26 02:28:52.517000846 +0900
+@@ -0,0 +1,11 @@
++The scripts in this directory are executed once when entering 
++runlevel 6.
++
++The scripts are all symbolic links whose targets are located in
++/etc/init.d/ .
++
++Generally it is not necessary to alter the scripts in this directory.
++Their purpose is to stop all services and to make the system ready
++for reboot.
++
++For more information see /etc/init.d/README.
+diff -ruN sysvinit-2.87dsf/sysv-rc/etc/rcS.d/README sysvinit/sysv-rc//etc/rcS.d/README
+--- sysvinit-2.87dsf/sysv-rc/etc/rcS.d/README	1970-01-01 09:00:00.000000000 +0900
++++ sysvinit/sysv-rc//etc/rcS.d/README	2011-07-26 02:28:52.517000846 +0900
+@@ -0,0 +1,12 @@
++The scripts in this directory whose names begin with an 'S' are
++executed once when booting the system, even when booting directly into
++single user mode.
++
++The scripts are all symbolic links whose targets are located in
++/etc/init.d/ .
++
++To disable a script in this directory, rename it so that it begins
++with a 'K' and run 'update-rc.d script defaults' to update the order
++using the script dependencies.
++
++For more information see /etc/init.d/README.
+diff -ruN sysvinit-2.87dsf/sysv-rc/Makefile sysvinit/sysv-rc//Makefile
+--- sysvinit-2.87dsf/sysv-rc/Makefile	1970-01-01 09:00:00.000000000 +0900
++++ sysvinit/sysv-rc//Makefile	2011-07-26 02:37:43.802000830 +0900
+@@ -0,0 +1,45 @@
++DESTDIR =
++sysconfdir = /etc
++prefix     = /usr
++docdir     = $(prefix)/share/doc/sysv-rc
++bindir     = $(prefix)/bin
++sbindir    = $(prefix)/sbin
++
++INSTALL      = install -m755
++INSTALL_DATA = install -m644
++
++all:
++
++install:
++	$(INSTALL) -d $(DESTDIR)$(docdir)/.
++	$(INSTALL) -d $(DESTDIR)/var/lib/insserv
++	$(INSTALL) -d $(DESTDIR)/var/lib/update-rc.d
++	$(INSTALL) -d $(DESTDIR)$(sysconfdir)/.
++	$(INSTALL_DATA) doc/* $(DESTDIR)$(docdir)/.
++	cp -af etc/* $(DESTDIR)$(sysconfdir)
++	find $(DESTDIR)$(sysconfdir) -type d -name .svn -print0 |xargs -r0 rm -r
++
++	for N in 2 3 4 5 ; do \
++		$(INSTALL) -d $(DESTDIR)$(sysconfdir)/rc$${N}.d ; \
++		$(INSTALL_DATA) rc2-5.d-README \
++			$(DESTDIR)$(sysconfdir)/rc$${N}.d/README ; \
++	done
++	chmod 755 $(DESTDIR)$(sysconfdir)/init.d/[a-z]*
++	chmod 644 $(DESTDIR)$(sysconfdir)/init.d/README
++	chmod -R go=u-w $(DESTDIR)$(sysconfdir)
++
++	$(INSTALL) -d $(DESTDIR)/usr/share/man/man8/.
++	$(INSTALL_DATA) man8/*.8 $(DESTDIR)/usr/share/man/man8
++#	$(INSTALL) -d $(DESTDIR)/usr/share/man/ja/man8/.
++#	$(INSTALL_DATA) man8/ja/*.8 $(DESTDIR)/usr/share/man/ja/man8
++#	$(INSTALL) -d $(DESTDIR)/usr/share/man/fr.UTF-8/man8/.
++#	$(INSTALL_DATA) man8/fr.UTF-8/*.8 $(DESTDIR)/usr/share/man/fr.UTF-8/man8
++#	$(INSTALL) -d $(tmp)/usr/share/man/es/man8/.
++#	$(INSTALL_DATA) man8/es/*.8 $(DESTDIR)/usr/share/man/es/man8
++
++	$(INSTALL) -d $(DESTDIR)$(sbindir)/.
++	$(INSTALL) sbin/invoke-rc.d $(DESTDIR)$(sbindir)
++	$(INSTALL) sbin/update-rc.d $(DESTDIR)$(sbindir)
++
++	$(INSTALL) -d $(DESTDIR)/usr/share/sysv-rc/.
++	$(INSTALL) saveconfig $(DESTDIR)/usr/share/sysv-rc/saveconfig
+diff -ruN sysvinit-2.87dsf/sysv-rc/man8/es/update-rc.d.8 sysvinit/sysv-rc//man8/es/update-rc.d.8
+--- sysvinit-2.87dsf/sysv-rc/man8/es/update-rc.d.8	1970-01-01 09:00:00.000000000 +0900
++++ sysvinit/sysv-rc//man8/es/update-rc.d.8	2011-07-26 02:28:52.516000852 +0900
+@@ -0,0 +1,206 @@
++.\" Hey, Emacs!  This is an -*- nroff -*- source file.
++.\" Authors: Ian Jackson
++.\" (c) 2003 Software in the Public Interest
++
++.\" Traductor: Rubén Porras (nahoo@inicia.es)
++.\" Revisado por : Javier Fernández-Sanguino Peńa (jfs@debian.org)
++.\"		   Esteban Manchado Velázquez (zoso@demiurgo.org)
++.\" Está basada en la página de manual original:
++.\" versión 1.2 del CVS de /cvs/debian-doc/manpages/english/sysvinit/update-rc.d.8
++
++.TH UPDATE\-RC.D 8 "23 de Diciembre de 2003" "Proyecto Debian" "sysv-rc"
++.SH NOMBRE
++update\-rc.d \- crea y borra los enlaces a los scripts init de tipo
++System V
++.SH SINOPSIS
++.B update\-rc.d
++.RI [ -n ]
++.RI [ -f ]
++.IB nombre " remove"
++.HP
++.B update-rc.d
++.RI [ -n ]
++.IB nombre " defaults"
++.RI [ NN " | " NN-start " " NN-stop ]
++.HP
++.B update-rc.d
++.RI [ -n ]
++.I nombre
++.BR start | stop
++.IR "NN nivel_de_ejecución nivel_de_ejecución " ...
++.B .
++.BR start | stop
++.IR "NN nivel_de_ejecución nivel_de_ejecución " ...
++.BR . " ..."
++.SH DESCRIPCI\['O]N
++.B update-rc.d
++actualiza automáticamente los enlaces a los scripts de init tipo
++System V que se encuentran en
++.BI /etc/rc[nivel_de_ejecución].d/NNnombre
++y que apuntan a los script
++.BI /etc/init.d/nombre\fR.
++Estos son ejecutados por
++.B init
++cuando se cambia de nivel de ejecución y se usan generalmente para
++arrancar y parar servicios del sistema (por ejemplo, demonios).
++.I nivel_de_ejecución
++es uno de los soportados por
++.BR init ", " 0123456789S ,
++y
++.I NN
++es el código de secuencia de dos dígitos usado por
++.B init
++para decidir en que orden se ejecutan los scripts.
++
++Esta página del manual documenta sólo el modo de uso y comportamiento de
++.BR update-rc.d .
++Para una explicación más detallada sobre la administración de los
++scripts de init estilo System V, por favor, lea
++.BR init (8)
++y el 
++.IR "Manual de normativa de Debian" .
++.SH CREACI\['O]N DE ENLACES A LOS SCRIPTS DE INIT
++Cuando se ejecuta con una o varias de las opciones
++.BR defaults ", " start ", o " stop  ,
++.B update-rc.d
++crea los enlaces
++.BI /etc/rc[nivel_de_ejecución].d/[SK]NNnombre
++apuntando al script
++.BI /etc/init.d/nombre\fR.
++
++Si ya existe algún fichero con el nombre
++.BI /etc/rc[nivel_de_ejecución].d/[SK]??
++entonces
++.B update-rc.d
++no hace nada. Esto es así para que el administrador del sistema pueda
++reorganizar los enlaces ( teniendo en cuenta que debe dejar al
++menos un enlace si los quiere eliminar ) sin que se sobreescriba su
++configuración.
++
++Si se usa la opción
++.B defaults
++entonces
++.B update-rc.d
++creará enlaces para arrancar los servicios en los niveles de ejecución
++.B 2345
++y parar los servicios en los niveles de ejecución
++.BR 016 .
++Por omisión todos los enlaces tendrán el código de secuencia 20, pero
++esto puede cambiarse especificando uno o dos argumentos
++.I NN.
++Un argumento cambia el valor por omisión del código de secuencia tanto
++para los enlaces de arranque como para los de parada, y si se
++proporcionan dos argumentos el primero cambia el código de los enlaces
++de arranque y el segundo el de los enlaces de parada.
++
++En vez de usar
++.B defaults
++, los niveles de ejecución en los que se arranca o se para un servicio
++pueden ser especificados explícitamente mediante un conjunto de
++argumentos:
++
++Cada uno de estos conjuntos empieza con un argumento
++.BR start " o " stop
++para especificar cuándo se van a crear enlaces para arrancar o parar
++el servicio.
++
++Luego les sigue
++.IR NN ,
++el código de secuencia para todos los enlaces del conjunto, y uno o
++más números de nivel de ejecución, cada uno como un solo argumento. El
++conjunto se termina con el argumento
++.B '.'
++(un punto).
++
++Cuando se especifican explícitamente los niveles de ejecución,
++normalmente habrá un conjunto
++.B start
++y otro
++.B stop .
++Si son necesarios diferentes códigos de secuencia para los
++distintos niveles de ejecución, entonces es necesario especificar
++varios conjuntos
++.B start
++y
++.B stop .
++
++El script
++.BI /etc/init.d/nombre
++debe existir antes de ejecutar
++.B update-rc.d
++para crear los enlaces.
++.SH BORRADO DE LOS SCRIPTS
++Cuando se ejecuta con la opción
++.I remove
++, update-rc.d borra todos los enlaces dentro del directorio
++.BI /etc/rc[nivel_de_ejecución].d
++que apunten al script
++.BI /etc/init.d/nombre\fR .
++El script debe haber sido borrado previamente (
++.B update-rc.d
++lo comprueba ).
++Normalmente los scripts post-eliminación de los paquetes ejecutan
++.B update-rc.d
++cuando detectan que su primer argumento es
++.BR purge 
++, dado que esto indica que el administrador ha pedido explícitamente
++que se borren los scripts de configuración proporcionados por el paquete.
++
++Cualquier fichero en los directorios
++.BI /etc/rc[nivel_de_ejecución].d
++que no sea un enlace simbólico apuntando a un script en
++.BI /etc/init.d/nombre
++se mantendrá intacto.
++.SH OPCIONES
++.TP
++.I -n
++No hacer nada, solamente indicar que hubiera hecho.
++.TP
++.I -f
++Borrar los enlaces incluso si todavía existe el script
++.BI /etc/init.d/nombre .
++.SH EJEMPLOS
++Crear los enlaces usando los parámetros por omisión:
++.nf
++.B    update-rc.d foobar defaults
++.fi
++Comando equivalente usando explícitamente un conjunto de argumentos:
++.nf
++.B    update-rc.d foobar start 20 2 3 4 5 . stop 20 0 1 6 .
++.fi
++.SH FALLOS
++
++No existe aún una forma para que el administrador pueda especificar al menos
++los niveles de ejecución que
++.B update-rc.d
++usará por defecto para arrancar y parar los servicios cuando se
++utilice la opción
++.B defaults
++ni la posibilidad de cambiar otros comportamientos.
++.SH FICHEROS
++.TP
++.B /etc/init.d/
++El directorio que contienen los scripts de arranque y parada.
++.TP
++.B /etc/rc?.d/
++Los directorios que contienen los enlaces usados por
++.BR init
++y administrados por
++.BR update-rc.d .
++.TP
++.B /etc/init.d/skeleton
++Un modelo a usar por los que escriban scripts de
++.B init.d .
++
++.SH VER ADEM\['A]S
++.IR "Manual de normativa de Debian"
++, modelo a usar por los que escriban scripts de
++.B init.d .
++
++.BR /etc/init.d/skeleton
++,
++.br
++.BR init (8) .
++
++.SH TRADUCTOR
++Traducción de Rubén Porras Campo <debian-l10n-spanish@lists.debian.org>
+diff -ruN sysvinit-2.87dsf/sysv-rc/man8/fr.UTF-8/update-rc.d.8 sysvinit/sysv-rc//man8/fr.UTF-8/update-rc.d.8
+--- sysvinit-2.87dsf/sysv-rc/man8/fr.UTF-8/update-rc.d.8	1970-01-01 09:00:00.000000000 +0900
++++ sysvinit/sysv-rc//man8/fr.UTF-8/update-rc.d.8	2011-07-26 02:28:52.516000852 +0900
+@@ -0,0 +1,192 @@
++.\" Hey, Emacs!  This is an -*- nroff -*- source file.
++.\" Authors: Ian Jackson
++.\" Traduction de la révision CVS 1.4
++.TH UPDATE\-RC.D 8 "23 décembre 2003" "Projet Debian " "Utilitaires de dpkg"
++.SH NOM
++update\-rc.d \- Pour installer ou supprimer les liens vers les scripts
++d'initialisation de type System-V 
++.SH SYNOPSIS
++.B update\-rc.d
++.RI [ -n ]
++.RI [ -f ]
++.IB nom " remove"
++.HP
++.B update-rc.d
++.RI [ -n ]
++.IB nom " defaults"
++.RI [ NN " | " NN-start " " NN-stop ]
++.HP
++.B update-rc.d
++.RI [ -n ]
++.I nom
++.BR start | stop
++.IR "NN runlevel runlevel " ...
++.B .
++.BR start | stop
++.IR "NN runlevel runlevel " ...
++.BR . " ..."
++.SH DESCRIPTION
++.B update-rc.d
++met à jour automatiquement les liens vers les scripts d'initialisation de type
++System-V dont le nom est
++.BI /etc/rc runlevel .d/ NNnom
++vers les scripts
++.BI /etc/init.d/ name \fR.
++Ils sont lancés par
++.B init
++quand on change de niveau de fonctionnement et ils sont généralement utilisés 
++pour démarrer ou arrêter des services tels que les démons.
++.I runlevel
++est l'un des niveaux de fonctionnement autorisés par
++.BR init ", " 0123456789S ,
++et
++.I NN
++est le code à deux chiffres utilisé par
++.B init
++pour décider de l'ordre d'exécution des scripts.
++
++Cette page de manuel documente seulement le comportement de
++.BR update-rc.d 
++et son utilisation.
++Pour une discussion sur la préparation des scripts pour l'initialisation de type System-V voyez
++.BR init (8)
++et la
++.IR "charte Debian" .
++.SH L'INSTALLATION DES LIENS DES SCRIPTS D'INITIALISATION
++Quand update-rc.d est lancé avec les options
++.BR defaults ", " start ", ou " stop,
++il crée les liens
++.BI /etc/rc runlevel .d/[SK] NNname
++qui pointent vers le script
++.BI /etc/init.d/ name\fR.
++
++Quand des fichiers
++.BI /etc/rc runlevel .d/[SK]?? name
++existent déjà, 
++.B update-rc.d
++ne fait rien.  C'est ainsi pour que l'administrateur système puisse
++réarranger les liens -- à condition qu'il en reste au moins un -- sans
++que sa configuration ne soit réécrite.  
++
++Quand l'option
++.B defaults
++est utilisée,
++.B update-rc.d
++crée des liens pour démarrer un service dans les niveaux de fonctionnement
++.B 2345
++et des liens pour arrêter un service dans les niveaux 
++.BR 016 .
++Par défaut, tous les liens ont un code égal à 20, mais on peut le changer en
++donnant un ou deux arguments
++.I NN ;
++quand un seul argument est donné, il remplace le code à la fois pour les 
++liens de démarrage (start) et pour les liens d'arrêt (stop) ; quand deux 
++arguments sont donnés, le premier remplace le code pour les liens de 
++démarrage (start) et le second remplace le code pour les liens d'arrêt (stop).
++
++Au lieu de
++.B defaults,
++on peut indiquer les niveaux de fonctionnement dans lesquels lancer ou 
++arrêter les services en utilisant une suite explicite d'ensembles d'arguments :
++
++Chacun de ces ensembles commence par un argument
++.BR start " ou " stop
++de manière à indiquer s'il faut créer des liens de démarrage ou d'arrêt.
++Ensuite vient le nombre du code
++.IR NN ,
++pour tous les liens de cet ensemble, puis un ou plusieurs nombres indiquant
++le niveau de fonctionnement, un seul argument pour chacun. l'ensemble se
++termine par un argument
++.B .
++(un simple point).
++
++Quand, plutôt que
++.BR defaults,
++on utilise une détermination explicite, il faut habituellement un ensemble de
++démarrage
++.B start, 
++et un ensemble d'arrêt
++.B stop.
++Quand on veut différents codes dans les différents niveaux de fonctionnement,
++on peut spécifier différents ensembles de démarrage
++.B start
++ou différents ensembles d'arrêt
++.B stop.
++
++Le script
++.BI /etc/init.d/ name
++doit exister avant de lancer
++.B update-rc.d
++pour créer les liens.
++.SH LA SUPPRESSION DES SCRIPTS
++Quand on appelle update-rc.d avec l'option
++.I remove
++les liens dans les répertoires
++.BI /etc/rc runlevel .d
++qui pointent vers le script
++.BI /etc/init.d/ name\fR.
++sont supprimés.
++Ce script doit déjà avoir été supprimé --
++.B update-rc.d
++vérifie cela.
++On appelle habituellement
++.B update-rc.d
++dans le script « post-removal » d'un paquet et quand ce script a détecté que
++son premier argument était 
++.BR purge ; 
++Cela indique que l'utilisateur a demandé le suppression de la configuration de
++ce paquet.
++Tout fichier dans les répertoires
++.BI /etc/rc runlevel .d
++qui n'est pas un lien symbolique vers le script
++.BI /etc/init.d/ name
++est préservé.
++.SH OPTIONS
++.TP
++.I -n
++Ne fait rien, montre seulement ce qui pourrait être fait.
++.TP
++.I -f
++Force la suppression des liens même si
++.BI /etc/init.d/ name
++existe encore.
++.SH EXEMPLES
++Insère des liens avec l'option « defaults » :
++.nf
++.B "   update-rc.d foobar defaults"
++.fi
++La męme commande, avec une détermination explicite utilisant les ensembles 
++d'arguments :
++.nf
++.B "   update-rc.d foobar start 20 2 3 4 5 . stop 20 0 1 6 ."
++.fi
++.SH BOGUES
++
++Il devrait y avoir un moyen pour l'administrateur système d'indiquer à
++l'option 
++.B defaults
++au moins les niveaux de fonctionnement par défaut à utiliser pour le 
++démarrage et l'arrêt des services ; l'administrateur systàme  devrait sans
++doute aussi pouvoir changer d'autres choses.
++.SH FICHIERS
++.TP
++.B /etc/init.d/
++Le répertoire qui contient en fait les scripts d'initialisation.
++.TP
++.B /etc/rc?.d/
++Le répertoire qui contient les liens utilisés par
++.BR init
++et gérés par
++.BR update-rc.d.
++.TP
++.B /etc/init.d/skeleton
++Modàle pour l'écriture des scripts de
++.B init.d.
++.SH VOIR AUSSI
++.IR "la charte Debian" ,
++.br
++.BR /etc/init.d/skeleton ,
++.br
++.BR init (8).
++.SH TRADUCTION
++Philippe Batailler. Dec 2000.
+diff -ruN sysvinit-2.87dsf/sysv-rc/man8/invoke-rc.d.8 sysvinit/sysv-rc//man8/invoke-rc.d.8
+--- sysvinit-2.87dsf/sysv-rc/man8/invoke-rc.d.8	1970-01-01 09:00:00.000000000 +0900
++++ sysvinit/sysv-rc//man8/invoke-rc.d.8	2011-07-26 02:28:52.516000852 +0900
+@@ -0,0 +1,231 @@
++.\" Hey, Emacs!  This is an -*- nroff -*- source file.
++.\" Authors: Henrique Holschuh
++.TH INVOKE\-RC.D 8 "1 March 2001" "Debian Project" "Debian/GNU Linux"
++.SH NAME
++invoke\-rc.d \- executes System-V style init script actions
++.SH SYNOPSIS
++.B invoke\-rc.d
++.RI [ --quiet ]
++.RI [ --force ]
++.RI [ --try-anyway ]
++.RI [ --disclose-deny ]
++.RI [ --query ]
++.RI [ --no-fallback ]
++.I name
++.I action
++.RI [ init\ script\ parameters... ]
++.HP
++.B invoke\-rc.d
++.RI [ --help ]
++.HP
++.SH DESCRIPTION
++.B invoke\-rc.d
++is a generic interface to execute System V style init script
++.BI /etc/init.d/ name \fR 
++actions, obeying runlevel constraints as well as any local
++policies set by the system administrator.
++
++All access to the init scripts by Debian packages' maintainer 
++scripts should be done through
++.B invoke\-rc.d\fR.
++
++This manpage documents only the usage and behavior of
++.BR invoke\-rc.d .
++For a discussion of the System V style init script arrangements please
++see
++.BR init (8)
++and the
++.IR "dpkg Programmers' Manual" .
++More information on invoke-rc.d can be found in the section on
++runlevels and init.d scripts of the
++.IR "Debian Policy Manual" .
++
++.SH INIT SCRIPT ACTIONS
++The standard actions are:
++.IR start ,
++.IR stop ,
++.IR force\-stop ,
++.IR restart ,
++.IR reload ,
++.IR force\-reload ,
++and
++.IR status .
++Other actions are accepted, but they can cause problems to
++.B policy\-rc.d
++(see the
++.B INIT SCRIPT POLICY
++section), so warnings are generated if the policy layer
++is active.
++
++Please note that not all init scripts will implement all
++the actions listed above, and that the policy layer may
++override an action to another action(s), or even deny it.
++
++Any extra parameters will be passed to the init script(s) being
++executed.
++
++If an action must be carried out regardless of any local
++policies, use the
++.IR --force
++switch.
++
++.SH OPTIONS
++.TP
++.I --help
++Display usage help.
++.TP
++.I --quiet
++Quiet mode, no error messages are generated.
++.TP
++.I --force
++Tries to run the init script regardless of policy and
++init script subsystem errors.
++.B Use of this option in Debian maintainer scripts is severely discouraged.
++.TP
++.I --try-anyway
++Tries to run the init script if a non-fatal error is
++detected.
++.TP
++.I --disclose-deny
++Return status code 101 instead of status code 0 if
++the init script action is denied by the policy layer.
++.TP
++.I --query
++Returns one of the status codes 100-106. Does not
++run the init script, and implies
++.IR --disclose-deny
++and 
++.IR --no-fallback .
++.TP
++.I --no-fallback
++Ignores any fallback action requests by the policy
++layer.
++.B Warning:
++this is usually a very bad idea for any actions other
++than
++.RI start .
++.SH STATUS CODES
++Should an init script be executed, 
++.B invoke\-rc.d 
++always returns the status code
++returned by the init script. Init scripts should not return status codes in
++the 100+ range (which is reserved in Debian and by the LSB). The status codes
++returned by invoke\-rc.d proper are:
++.TP
++0
++.IR Success . 
++Either the init script was run and returned exit status 0 (note
++that a fallback action may have been run instead of the one given in the
++command line), or it was not run because of runlevel/local policy constrains
++and
++.B --disclose-deny 
++is not in effect.
++.TP
++1 - 99
++Reserved for init.d script, usually indicates a failure.
++.TP
++100
++.B Init script ID
++.BI ( name )
++.BR unknown .
++This means the init script was not registered successfully through
++.B update\-rc.d
++or that the init script does not exist.
++.TP
++101
++.B Action not allowed\fR.
++The requested action will not be performed because of runlevel or local
++policy constraints.
++.TP
++102
++.B Subsystem error\fR.
++Init script (or policy layer) subsystem malfunction. Also, forced
++init script execution due to 
++.I --try-anyway 
++or 
++.I --force
++failed\fR.
++.TP
++103
++.I Syntax error\fR.
++.TP
++104
++.I Action allowed\fR.
++Init script would be run, but 
++.B --query
++is in effect.
++.TP
++105
++.I Behavior uncertain\fR.
++It cannot be determined if action should be carried out or not, and 
++.B --query
++is in effect.
++.TP
++106
++.I Fallback action requested\fR.
++The policy layer denied the requested action, and
++supplied an allowed fallback action to be used instead.
++
++.SH INIT SCRIPT POLICY
++.B invoke\-rc.d
++introduces the concept of a policy layer which is used to verify if
++an init script should be run or not, or if something else should be
++done instead.  This layer has various uses, the most immediate ones
++being avoiding that package upgrades start daemons out-of-runlevel,
++and that a package starts or stops daemons while inside a chroot 
++jail.
++
++The policy layer has the following abilities: deny or approve the
++execution of an action; request that another action (called a
++.IR fallback )
++is to be taken, instead of the action requested in invoke\-rc.d's 
++command line; or request multiple actions to be tried in order, until
++one of them succeeds (a multiple
++.IR fallback ).
++
++.B invoke\-rc.d
++itself only pays attention to the current runlevel; it will block
++any attempts to start a service in a runlevel in which the service is
++disabled.  Other policies are implemented with the use of the
++.B policy\-rc.d
++helper, and are only available if
++.B /usr/sbin/policy\-rc.d
++is installed in the system.
++
++.SH FILES
++.TP
++.BR /etc/init.d/* 
++System V init scripts.
++.TP
++.BR /usr/sbin/policy\-rc.d
++Init script policy layer helper (not required).
++.TP
++.BR /etc/runlevel.conf
++file-rc runlevel configuration (if the file-rc package is 
++being used).
++.TP
++.BR /etc/rc?.d/*
++System V runlevel configuration (if the sysv-rc package is
++not being used).
++
++.SH NOTES
++.B invoke\-rc.d
++special cases the
++.I status
++action, and returns exit status 4 instead of exit status 0 when
++it is denied.
++
++.SH BUGS
++Please report any bugs using the Debian bug tracking system,
++http://bugs.debian.org/, packages sysv\-rc or file\-rc 
++(depending on which version of invoke\-rc.d you are using).
++.SH SEE ALSO
++.IR "dpkg Programmers' manual" ,
++.br
++.BR /etc/init.d/skeleton ,
++.br
++.BR update\-rc.d (8),
++.br
++.BR init (8),
++.br
++.BR /usr/share/doc/sysv-rc/README.policy-rc.d
+diff -ruN sysvinit-2.87dsf/sysv-rc/man8/ja/update-rc.d.8 sysvinit/sysv-rc//man8/ja/update-rc.d.8
+--- sysvinit-2.87dsf/sysv-rc/man8/ja/update-rc.d.8	1970-01-01 09:00:00.000000000 +0900
++++ sysvinit/sysv-rc//man8/ja/update-rc.d.8	2011-07-26 02:28:52.516000852 +0900
+@@ -0,0 +1,193 @@
++.\" Hey, Emacs!  This is an -*- nroff -*- source file.
++.\" Authors: Ian Jackson
++.\" Original manpage cvs revision 1.4
++.TH UPDATE\-RC.D 8 "2 March 1998" "Debian Project" "dpkg utilities"
++.SH 名前
++update\-rc.d \- System-V スタイルの init スクリプト用のリンクをインストール、削除する
++.SH 書式
++.B update\-rc.d
++.RI [ -n ]
++.RI [ -f ]
++.IB name " remove"
++.HP
++.B update-rc.d
++.RI [ -n ]
++.RI [ -f ]
++.IB name " defaults"
++.RI [ NN " | " NN-start " " NN-stop ]
++.HP
++.B update-rc.d
++.RI [ -n ]
++.RI [ -f ]
++.I name
++.BR start | stop
++.IR "NN runlevel runlevel " ...
++.B .
++.BR start | stop
++.IR "NN runlevel runlevel " ...
++.BR . " ..."
++.SH 説明
++.B update-rc.d
++は、
++スクリプト
++.BI /etc/init.d/ name \fR
++へのリンクである
++.BI /etc/rc runlevel .d/ NNname
++を自動的に作成する。
++.BI /etc/rc runlevel .d/ NNname 
++は System V スタイルの init スクリプト用のリンクであり、
++ランレベルを変更する際に
++.B init
++によって実行され、一般にデーモンのようなシステムサービスの起動、
++停止に使用される。
++.I runlevel
++には
++.BR init 
++がサポートするランレベル数
++.BR 0123456789S
++のうちのひとつを指定する。
++.I NN
++は 2 桁の数字であり、
++.B init
++がスクリプトを実行する順序を決めるために使用する。
++
++このマニュアルは
++.BR update-rc.d 
++の使用法とその動作についてのみ言及する。
++System V スタイルの init スクリプトの配置についての議論には、
++.BR init (8)
++と
++.IR "dpkg programmers' manual" 
++を参照すること。
++.SH INIT スクリプト用のリンクをインストールする
++.BR defaults ", " start ", " stop
++オプションのいずれかを使って実行した場合、
++update-rc.d は
++.BI /etc/rc runlevel .d/[SK] NNname
++をスクリプト
++.BI /etc/init.d/ name\fR
++にリンクする。
++
++ファイル
++.BI /etc/rc runlevel .d/[SK]?? name
++がすでに存在する場合には、
++.B update-rc.d
++は何もしない。これは、システム管理者がひとつでもリンクを残していた
++場合に、その設定を上書きされることがなく、別の場所に移動させること
++ができるようにするためである。
++
++.B defaults
++が使用された場合、
++.B update-rc.d
++はランレベル
++.B 2345
++にサービスの起動用リンクを、ランレベル
++.BR 016
++にサービスの停止用リンクを作成する。デフォルトでは、リンクはすべて
++のシーケンスコード 20 を持つが、引数
++.I NN
++をひとつ、又はふたつ与えることで変更することができる。引数がひとつ
++の場合、起動用リンクと停止用リンクの両方のシーケンスコードを変更す
++る。一方、引数がふたつ与えられた場合、ひとつめが起動用リンクのシー
++ケンスコードを、ふたつめが停止用リンクのシーケンスコードを変更す
++る。
++
++.B defaults
++を使用する代わりに、引数セットを与えることで
++サービスを起動、停止するランレベルを明示的に指定することができる。
++
++引数セットはそれぞれ引数
++.BR start " または " stop
++で始まり、これにより起動用リンクまたは停止用リンクのどちらを作成す
++るか指定する。次に、引数セットのリンクすべてに対するシーケンスコー
++ド番号
++.IR NN
++を指定し、更にひとつ以上のランレベル数をそれぞれひとつの引数として
++与える。引数セットは引数
++.B .
++(ピリオド)により終了する。
++
++.BR defaults
++を使用せず明示的に指定した場合、通常
++.B start
++セットと
++.B stop
++セットがひとつずつ存在する。
++
++ランレベルごとに異なるシーケンスコードが必要な場合は、
++.B start
++セットや
++.B stop
++セットを複数指定する。
++
++.B update-rc.d
++がリンクを作成する前に、
++スクリプト
++.BI /etc/init.d/ name
++が存在していなくてはならない。
++.SH リンク削除用のスクリプト
++.I remove
++オプションを引数に与えると、
++.BI /etc/rc runlevel .d
++ディレクトリにあるスクリプト
++.BI /etc/init.d/ name\fR
++へのリンクをすべて削除する。
++スクリプトはあらかじめ削除されていなくてはならない。
++.B update-rc.d
++はこれをチェックする。通常、
++.B update-rc.d
++はパッケージの postrm スクリプトから呼び出される。
++これが実行されるのは、postrm スクリプトの第1引数として
++.BR purge
++が与えられた場合であり、これはユーザがパッケージの設定を削除
++することを要求していることを表す。
++.BI /etc/rc runlevel .d
++ディレクトリにあるがスクリプト
++.BI /etc/init.d/ name
++にシンボリックリンクされていないファイルは削除されずに残される。
++.SH オプション
++.TP
++.I -n
++実際の動作を表示するだけで、何もしない。
++.TP
++.I -f
++.BI /etc/init.d/ name
++が存在しいても、強制的にシンボリックリンクを削除する。
++.SH 使用例
++defaults を使用したリンクの作成
++.nf
++.B "   update-rc.d foobar defaults"
++.fi
++引数セットを明示した同等のコマンド
++.nf
++.B "   update-rc.d foobar start 20 2 3 4 5 . stop 20 0 1 6 ."
++.fi
++.SH バグ
++システム管理者のために少なくとも
++.B defaults
++でどのランレベルを start または stop にするかを指定できる方法が必要である。
++また、可能ならば
++.B defaults
++以外のオプションでも管理者の指定を優先する方法が必要。
++.SH ファイル
++.TP
++.B /etc/init.d/
++init スクリプトが実際に置いてあるディレクトリ
++.TP
++.B /etc/rc?.d/
++.BR update-rc.d
++が取り扱うリンクを含んだディレクトリ。
++.BR init
++により使用される。
++.TP
++.B /etc/init.d/skeleton
++.B init.d
++スクリプトを書くために使用する雛型
++.SH 関連項目
++.IR "dpkg programmers manual" ,
++.br
++.BR /etc/init.d/skeleton ,
++.br
++.BR init (8).
++.SH 翻訳者
++鍋谷 栄展 <nabetani@kern.phys.sci.osaka-u.ac.jp>
+diff -ruN sysvinit-2.87dsf/sysv-rc/man8/update-rc.d.8 sysvinit/sysv-rc//man8/update-rc.d.8
+--- sysvinit-2.87dsf/sysv-rc/man8/update-rc.d.8	1970-01-01 09:00:00.000000000 +0900
++++ sysvinit/sysv-rc//man8/update-rc.d.8	2011-07-26 02:28:52.516000852 +0900
+@@ -0,0 +1,329 @@
++.\" Hey, Emacs!  This is an -*- nroff -*- source file.
++.\" Authors: Ian Jackson, Miquel van Smoorenburg
++.TH "UPDATE\-RC.D" "8" "14 November 2005" "Debian Project" "sysv-rc"
++.SH "NAME"
++update\-rc.d \- install and remove System\-V style init script links
++.SH "SYNOPSIS"
++.B update\-rc.d
++.RI [ \-n ]
++.RI [ \-f ]
++.I B name " remove"
++.HP
++.B update\-rc.d
++.RI [ \-n ]
++.I B name " defaults"
++.RI [ NN " | " SS " " KK ]
++.HP
++.B update\-rc.d
++.RI [ \-n ]
++.I name
++.BR start | stop
++.I R "NN runlevel" " [" runlevel "]..."
++.B .
++.BR start | stop
++.I R "NN runlevel" " [" runlevel "]..."
++.BR . " ..."
++.HP
++.B update\-rc.d
++.RI [ \-n ]
++.I B name " disable|enable "
++.RI [ " S|2|3|4|5 " ]
++.SH "DESCRIPTION"
++.B update\-rc.d
++updates the System V style init script links
++.BI /etc/rc runlevel .d/ NNname
++whose target is the script
++.BI /etc/init.d/ name \fR.
++These links are run by
++.B init
++when it changes runlevels; they are generally used to start and stop
++system services such as daemons.
++.I runlevel
++is one of the runlevels supported by
++.BR init ", namely, " 0123456789S ", and "
++.I NN
++is the two\-digit sequence number that determines where in the sequence
++.B init
++will run the scripts.
++
++This manpage documents only the usage and behaviour of
++.BR update\-rc.d .
++For a discussion of the System V style init script arrangements please
++see
++.BR init (8)
++and the
++.I R "Debian Policy Manual" .
++
++.SH "INSTALLING INIT SCRIPT LINKS"
++update\-rc.d has two modes of operation for installing scripts
++into the boot sequence.  A legacy mode where command line arguments
++are used to decide the sequence and runlevel configuration,
++and the default mode where dependency and runlevel information in
++the init.d script LSB comment header is used instead.  Such
++header is required to be present in init.d scripts.
++See the insserv(8) manual page for details about the LSB
++header format.  The boot sequencing method is decided
++during installation or upgrades.  During upgrades, if there
++are no loops in the dependencies declared by LSB headers of all
++installed init.d scripts and no obsolete init.d scripts,
++the boot system is converted to dependency based boot sequencing.
++The conversion to dependency based boot sequencing is one\-way.  The
++machines using the legacy mode will have a file
++/etc/init.d/.legacy\-bootordering .
++
++Packages installing init.d scripts should make sure both methods work,
++for compatiblity with systems where the migration have not been done
++yet.
++
++For legacy mode, the following section documents the old behaviour.
++
++When run with either the
++.BR defaults ", " start ", or " stop
++options,
++.B update\-rc.d
++makes links
++.BI /etc/rc runlevel .d/[SK] NNname
++that point to the script
++.BR /etc/init.d/ \fIname\fR.
++
++If any files
++.BI /etc/rc runlevel .d/[SK]?? name
++already exist then
++.B update\-rc.d
++does nothing.
++The program was written this way so that it will never
++change an existing configuration, which may have been
++customized by the system administrator.
++The program will only install links if none are present,
++i.e.,
++if it appears that the service has never been installed before.
++.P
++A common system administration error is to delete the links
++with the thought that this will "disable" the service, i.e.,
++that this will prevent the service from being started.
++However, if all links have been deleted then the next time
++the package is upgraded, the package's
++.I postinst
++script will run
++.B update\-rc.d
++again and this will reinstall links at their factory default locations.
++The correct way to disable services is to configure the
++service as stopped in all runlevels in which it is started by default.
++In the System V init system this means renaming
++the service's symbolic links
++from
++.B S
++to
++.BR K .
++.P
++If
++.B defaults
++is used then
++.B update\-rc.d
++will make links to start the service in runlevels
++.B 2345
++and to stop the service in runlevels
++.BR 016 .
++By default all the links will have sequence number 20, but
++this should be overridden if there are dependencies. For example if
++daemon B depends on A, then A must be started before B and B must be
++killed before A. You accomplish this by supplying two NN arguments. In
++general, core daemons should start early and be killed late, whilst
++applications can start late and be killed early. See EXAMPLES below.
++.P
++The first NN argument supplies the start sequence number and
++the second NN argument supplies the kill sequence number.
++Kill scripts are called first, passing a stop argument. Then
++start scripts are called passing a start argument. In either
++case, calls happen in ascending sequence number order.
++.P
++Supplying a single NN argument will use the same number for
++both start and kill links. This is supported for backward
++compatibility but is discouraged, as it may lead to inconsistent
++settings. As a rule of thumb, if you increase the start sequence
++number you should also decrease the stop sequence number, and
++vice\-versa.
++.P
++As a rule of thumb, the sequence number of the stop link 
++should be 100 minus the sequence number of the start link;
++this causes services to be stopped in the opposite order
++to that in which they are started.
++Obviously, therefore, the default stop sequence number
++should be 80.
++Defaulting to 20, as
++.B update\-rc.d
++does, is an old bug that cannot be fixed because
++of the risk of breaking things.
++.P
++Instead of
++.B defaults
++one can give one or more sets of arguments specifying
++particular runlevels in which to start or stop the service.
++Each of these sets of arguments starts with the keyword
++.BR start " or " stop
++and a sequence number
++.I R NN ,
++followed by one or more runlevel numbers.
++The set is terminated by a solitary full stop character.
++When explicit specification, rather than
++.BR defaults ,
++is used there will usually be one
++.B start
++and one
++.B stop
++set.  If different sequence codes are required in different runlevels
++then several 
++.B start
++sets or several
++.B stop
++sets may be specified.
++If this is done and the same runlevel is named in multiple sets
++then only the last one counts.
++Therefore it is not possible to create multiple
++.B start
++or multiple
++.B stop
++links for a service in a single runlevel directory.
++.P
++The script
++.BI /etc/init.d/ name
++must exist before
++.B update\-rc.d
++is run to create the links.
++.SH "REMOVING SCRIPTS"
++When invoked with the
++.I remove
++option, update\-rc.d removes any links in the
++.BI /etc/rc runlevel .d
++directories to the script
++.BI /etc/init.d/ name\fR.
++The script must have been deleted already.
++If the script is still present then
++.B update\-rc.d
++aborts with an error message.
++.P
++.B update\-rc.d
++is usually called from a package's post\-removal script when that
++script is given the
++.B purge
++argument.
++Any files in the
++.BI /etc/rc runlevel .d
++directories that are not symbolic links to the script
++.BI /etc/init.d/ name
++will be left untouched.
++.SH "DISABLING INIT SCRIPT START LINKS"
++When run with the
++.BR disable " [ " S|2|3|4|5 " ] "
++options,
++.B update\-rc.d
++modifies existing runlevel links for the script
++.BR /etc/init.d/ \fIname\fR
++by renaming start links to stop links with a sequence number equal
++to the difference of 100 minus the original sequence number.
++.P
++When run with the
++.BR enable " [ " S|2|3|4|5 " ] "
++options,
++.B update\-rc.d
++modifies existing runlevel links for the script
++.BR /etc/init.d/ \fIname\fR
++by renaming stop links to start links with a sequence number equal
++to the positive difference of current sequence number minus 100, thus
++returning to the original sequence number that the script had been
++installed with before disabling it.
++.P
++Both of these options only operate on start runlevel links of S, 2,
++3, 4 or 5. If no start runlevel is specified after the disable or enable
++keywords, the script will attempt to modify links in all start runlevels.
++
++.SH "OPTIONS"
++.TP 
++.I \-n
++Don't do anything, just show what we would do.
++.TP 
++.I \-f
++Force removal of symlinks even if
++.BI /etc/init.d/ name
++still exists.
++.SH "EXAMPLES"
++Insert links using the defaults:
++.nf 
++.B "   update\-rc.d foobar defaults"
++The equivalent dependency header would have start and stop
++dependencies on $remote_fs and $syslog, and start in
++runlevels 2\-5 and stop in runlevels 0, 1 and 6.
++.fi 
++Equivalent command using explicit argument sets:
++.nf 
++.B "   update\-rc.d foobar start 20 2 3 4 5 . stop 20 0 1 6 ."
++.fi 
++More typical command using explicit argument sets:
++.nf 
++.B "   update\-rc.d foobar start 30 2 3 4 5 . stop 70 0 1 6 ."
++.fi 
++Insert links at default runlevels when B requires A
++.nf 
++.B "   update\-rc.d script_for_A defaults 80 20"
++.B "   update\-rc.d script_for_B defaults 90 10"
++.fi 
++Insert a link to a service that (presumably) will not be
++needed by any other daemon
++.nf 
++.B "   update\-rc.d top_level_app defaults 98 02"
++.fi 
++Insert links for a script that requires services that
++start/stop at sequence number 20
++.nf 
++.B "   update\-rc.d script_depends_on_svc20 defaults 21 19"
++.fi 
++Remove all links for a script (assuming foobar has been deleted
++already):
++.nf 
++.B "   update\-rc.d foobar remove"
++.fi 
++Example of disabling a service:
++.nf 
++.B "   update\-rc.d \-f foobar remove"
++.B "   update\-rc.d foobar stop 20 2 3 4 5 ."
++.fi 
++Example of a command for installing a system initialization\-and\-shutdown script:
++.nf 
++.B "   update\-rc.d foobar start 45 S . stop 31 0 6 ."
++.fi 
++Example of a command for disabling a system initialization\-and\-shutdown script:
++.nf 
++.B "   update\-rc.d \-f foobar remove"
++.B "   update\-rc.d foobar stop 45 S ."
++.fi 
++
++.SH "BUGS"
++See http://bugs.debian.org/sysv\-rc.
++.SH "FILES"
++.TP 
++.B /etc/init.d/
++The directory containing the actual init scripts.
++.TP 
++.B /etc/rc?.d/
++The directories containing the links used by
++.BR init
++and managed by
++.BR update\-rc.d .
++.TP 
++.B /etc/init.d/skeleton
++Model for use by writers of
++.B init.d
++scripts.
++.TP 
++.B /var/lib/sysv\-rc/legacy\-bootsequence
++Flag indicating the machine is using legacy mode for boot script
++ordering.
++.SH "SEE ALSO"
++.I R "Debian Policy Manual" ,
++.br 
++.BR /etc/init.d/skeleton ,
++.br 
++.BR insserv (8),
++.BR sysv\-rc\-conf (8),
++.BR bum (8),
++.BR init (8).
+diff -ruN sysvinit-2.87dsf/sysv-rc/rc2-5.d-README sysvinit/sysv-rc//rc2-5.d-README
+--- sysvinit-2.87dsf/sysv-rc/rc2-5.d-README	1970-01-01 09:00:00.000000000 +0900
++++ sysvinit/sysv-rc//rc2-5.d-README	2011-07-26 02:28:52.517000846 +0900
+@@ -0,0 +1,15 @@
++The scripts in this directory are executed each time the system enters
++this runlevel.
++
++The scripts are all symbolic links whose targets are located in
++/etc/init.d/ .
++
++To disable a service in this runlevel, rename its script in this
++directory so that the new name begins with a 'K' and a two-digit
++number, and run 'update-rc.d script defaults' to reorder the scripts
++according to dependencies.  A warning about the current runlevels
++being enabled not matching the LSB header in the init.d script will be
++printed.  To re-enable the service, rename the script back to its
++original name beginning with 'S' and run update-rc.d again.
++
++For a more information see /etc/init.d/README.
+diff -ruN sysvinit-2.87dsf/sysv-rc/saveconfig sysvinit/sysv-rc//saveconfig
+--- sysvinit-2.87dsf/sysv-rc/saveconfig	1970-01-01 09:00:00.000000000 +0900
++++ sysvinit/sysv-rc//saveconfig	2011-07-26 02:28:52.518000841 +0900
+@@ -0,0 +1,94 @@
++#! /usr/bin/perl
++#
++# saveconfig
++#
++# Print out the configuration of the current /etc/rc?.d
++# symlink setup, in a format compatible to the
++# "update-rc.d" command line.
++#
++# Author: Miquel van Smoorenburg <miquels@cistron.nl>
++# Adjusted by Petter Reinholdtsen
++#
++
++sub usage {
++    print STDERR "error: ", @_, "\n" if @_;
++    print STDERR <<EOF;
++saveconfig [-h] [-s <archivedir>]
++  -s  save each scripts setting in directory <archivedir>
++  -h  show usage inforation
++EOF
++}
++
++my $archivedir = "";
++
++while($#ARGV >= 0 && ($_ = $ARGV[0]) =~ /^-/) {
++        shift @ARGV;
++        if (/^-s$/) { $archivedir = shift; usage("Missing -s argument"), exit 1 unless $archivedir; next }
++        if (/^-h|--help$/) { &usage; }
++        &usage("unknown option");
++}
++
++chdir "/etc/init.d";
++
++sub scan {
++	my $dir = shift;
++	local *DD;
++	my $f;
++	opendir DD, $dir;
++	foreach $f (readdir DD) {
++		next if ($f =~ m/^\./);
++		push @{$dir{$dir}}, $f;
++	}
++	closedir DD;
++}
++
++foreach my $d (qw(S 0 1 2 3 4 5 6 7 8 9)) {
++	scan("/etc/rc$d.d");
++}
++scan("/etc/init.d");
++
++foreach my $s (@{$dir{"/etc/init.d"}}) {
++	my %start;
++	my %stop;
++	my $start = 0;
++	my $stop = 0;
++	foreach my $l (qw(S 0 1 2 3 4 5 6)) {
++		#print "L: $l\n";
++		foreach my $f (@{$dir{"/etc/rc$l.d"}}) {
++			#print "F: $f\n";
++			if ($f =~ m#^S(\d+)$s$#) {
++				$start{$1} .= "$l ";
++				$start = 1;
++			}
++			if ($f =~ m#^K(\d+)$s$#) {
++				$stop{$1} .= "$l ";
++				$stop = 1;
++			}
++		}
++	}
++        my $entry;
++        if ($start || $stop) {
++		$entry = "update-rc.d $s ";
++		if ($start > 0) {
++			foreach my $x (sort keys %start) {
++				$entry .= "start $x " . $start{$x} . ". ";
++			}
++		}
++		if ($stop > 0) {
++			foreach my $x (sort keys %stop) {
++				$entry .= "stop $x " . $stop{$x} . ". ";
++			}
++		}
++		$entry .= "\n";
++		if ($archivedir) {
++			my $file = "$archivedir/$s";
++			open(FILE, ">", "${file}.new") ||
++				die "Unable to write to $file";
++			print FILE $entry;
++			close(FILE);
++			rename "${file}.new", "$file";
++		} else {
++			print $entry;
++		}
++	}
++}
+diff -ruN sysvinit-2.87dsf/sysv-rc/sbin/invoke-rc.d sysvinit/sysv-rc//sbin/invoke-rc.d
+--- sysvinit-2.87dsf/sysv-rc/sbin/invoke-rc.d	1970-01-01 09:00:00.000000000 +0900
++++ sysvinit/sysv-rc//sbin/invoke-rc.d	2011-07-26 02:28:52.516000852 +0900
+@@ -0,0 +1,461 @@
++#!/bin/sh  
++#
++# invoke-rc.d.sysvinit - Executes initscript actions
++#
++# SysVinit /etc/rc?.d version for Debian's sysvinit package
++#
++# Copyright (C) 2000,2001 Henrique de Moraes Holschuh <hmh@debian.org>
++#
++# This program is free software; you can redistribute it and/or modify it
++# under the terms of the GNU General Public License as published by the Free
++# Software Foundation; either version 2 of the License, or (at your option)
++# any later version.
++#
++# This program is distributed in the hope that it will be useful, but
++# WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
++# or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
++# for more details.
++#
++# You should have received a copy of the GNU General Public License along
++# with this program; if not, write to the Free Software Foundation, Inc.,
++# 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
++
++# Constants
++RUNLEVEL=/sbin/runlevel
++POLICYHELPER=/usr/sbin/policy-rc.d
++INITDPREFIX=/etc/init.d/
++RCDPREFIX=/etc/rc
++
++# Options
++BEQUIET=
++MODE=
++ACTION=
++FALLBACK=
++NOFALLBACK=
++FORCE=
++RETRY=
++RETURNFAILURE=
++RC=
++
++# Shell options
++set +e
++
++dohelp () {
++ # 
++ # outputs help and usage
++ #
++cat <<EOF
++
++invoke-rc.d, Debian/SysVinit (/etc/rc?.d) initscript subsystem.
++Copyright (c) 2000,2001 Henrique de Moraes Holschuh <hmh@debian.org>
++
++Usage:
++  invoke-rc.d [options] <basename> <action> [extra parameters]
++
++  basename - Initscript ID, as per update-rc.d(8)
++  action   - Initscript action. Known actions are:
++                start, [force-]stop, restart,
++                [force-]reload, status
++  WARNING: not all initscripts implement all of the above actions.
++
++  extra parameters are passed as is to the initscript, following 
++  the action (first initscript parameter).
++
++Options:
++  --quiet
++     Quiet mode, no error messages are generated.
++  --force
++     Try to run the initscript regardless of policy and subsystem
++     non-fatal errors.
++  --try-anyway
++     Try to run init script even if a non-fatal error is found.
++  --disclose-deny
++     Return status code 101 instead of status code 0 if
++     initscript action is denied by local policy rules or
++     runlevel constrains.
++  --query
++     Returns one of status codes 100-106, does not run
++     the initscript. Implies --disclose-deny and --no-fallback.
++  --no-fallback
++     Ignores any fallback action requests by the policy layer.
++     Warning: this is usually a very *bad* idea for any actions
++     other than "start".
++  --help
++     Outputs help message to stdout
++
++EOF
++}
++
++printerror () {
++ #
++ # prints an error message
++ #  $* - error message
++ #
++if test x${BEQUIET} = x ; then
++    echo `basename $0`: "$*" >&2
++fi
++}
++
++formataction () {
++ #
++ # formats a list in $* into $printaction
++ # for human-friendly printing to stderr
++ # and sets $naction to action or actions
++ #
++printaction=`echo $* | sed 's/ /, /g'`
++if test $# -eq 1 ; then
++    naction=action
++else
++    naction=actions
++fi
++}
++
++querypolicy () {
++ #
++ # queries policy database
++ # returns: $RC = 104 - ok, run
++ #          $RC = 101 - ok, do not run
++ #        other - exit with status $RC, maybe run if $RETRY
++ #          initial status of $RC is taken into account.
++ #
++
++policyaction="${ACTION}"
++if test x${RC} = "x101" ; then
++    if test "${ACTION}" = "start" || test "${ACTION}" = "restart" ; then
++	policyaction="(${ACTION})"
++    fi
++fi
++
++if test "x${POLICYHELPER}" != x && test -x "${POLICYHELPER}" ; then
++    FALLBACK=`${POLICYHELPER} ${BEQUIET} ${INITSCRIPTID} "${policyaction}" ${RL}`
++    RC=$?
++    formataction ${ACTION}
++    case ${RC} in
++	0)   RC=104
++	     ;;
++	1)   RC=105
++	     ;;
++	101) if test x${FORCE} != x ; then
++		printerror Overriding policy-rc.d denied execution of ${printaction}.
++		RC=104
++	     fi
++	     ;;
++    esac
++    if test x${MODE} != xquery ; then
++      case ${RC} in
++	105) printerror policy-rc.d query returned \"behaviour undefined\",
++	     printerror assuming \"${printaction}\" is allowed.
++	     RC=104
++	     ;;
++	106) formataction ${FALLBACK}
++	     if test x${FORCE} = x ; then
++		 if test x${NOFALLBACK} = x ; then
++		     ACTION="${FALLBACK}"
++		     printerror executing ${naction} \"${printaction}\" instead due to policy-rc.d request.
++		     RC=104
++		 else
++		     printerror ignoring policy-rc.d fallback request: ${printaction}.
++		     RC=101
++		 fi
++	     else
++		 printerror ignoring policy-rc.d fallback request: ${printaction}.
++		 RC=104
++	     fi
++	     ;;
++      esac
++    fi
++    case ${RC} in
++      100|101|102|103|104|105|106) ;;
++      *) printerror WARNING: policy-rc.d returned unexpected error status ${RC}, 102 used instead.
++         RC=102
++	 ;;
++    esac
++else
++    if test x${RC} = x ; then 
++	RC=104
++    fi
++fi
++return
++}
++
++verifyparameter () {
++ #
++ # Verifies if $1 is not null, and $# = 1
++ #
++if test $# -eq 0 ; then
++    printerror syntax error: invalid empty parameter
++    exit 103
++elif test $# -ne 1 ; then
++    printerror syntax error: embedded blanks are not allowed in \"$*\"
++    exit 103
++fi
++return
++}
++
++##
++##  main
++##
++
++## Verifies command line arguments
++
++if test $# -eq 0 ; then
++  printerror syntax error: missing required parameter, --help assumed
++  dohelp
++  exit 103
++fi
++
++state=I
++while test $# -gt 0 && test ${state} != III ; do
++    case "$1" in
++      --help)   dohelp 
++		exit 0
++		;;
++      --quiet)  BEQUIET=--quiet
++		;;
++      --force)  FORCE=yes
++		RETRY=yes
++		;;
++      --try-anyway)
++	        RETRY=yes
++		;;
++      --disclose-deny)
++		RETURNFAILURE=yes
++		;;
++      --query)  MODE=query
++		RETURNFAILURE=yes
++		;;
++      --no-fallback)
++		NOFALLBACK=yes
++		;;
++      --*)	printerror syntax error: unknown option \"$1\"
++		exit 103
++		;;
++	*)      case ${state} in
++		I)  verifyparameter $1
++		    INITSCRIPTID=$1
++		    ;;
++		II) verifyparameter $1
++		    ACTION=$1
++		    ;;
++		esac
++		state=${state}I
++		;;
++    esac
++    shift
++done
++
++if test ${state} != III ; then
++    printerror syntax error: missing required parameter
++    exit 103
++fi
++
++#NOTE: It may not be obvious, but "$@" from this point on must expand
++#to the extra initscript parameters, except inside functions.
++
++## sanity checks and just-in-case warnings.
++case ${ACTION} in
++    start|stop|force-stop|restart|reload|force-reload|status)
++	;;
++    *)
++	if test "x${POLICYHELPER}" != x && test -x "${POLICYHELPER}" ; then
++	    printerror action ${ACTION} is unknown, but proceeding anyway.
++	fi
++	;;
++esac
++
++## Verifies if the given initscript ID is known
++## For sysvinit, this error is critical
++if test ! -f "${INITDPREFIX}${INITSCRIPTID}" ; then
++    printerror unknown initscript, ${INITDPREFIX}${INITSCRIPTID} not found.
++    exit 100
++fi
++
++## Queries sysvinit for the current runlevel
++RL=`${RUNLEVEL} | sed 's/.*\ //'`
++if test ! $? ; then
++    printerror "could not determine current runlevel"
++    if test x${RETRY} = x ; then
++	exit 102
++    fi
++    RL=
++fi
++
++## Running ${RUNLEVEL} to get current runlevel do not work in the boot
++## runlevel (scripts in /etc/rcS.d/), as /var/run/utmp contain
++## runlevel 0 or 6 (written at shutdown) at that point.
++if test x${RL} = x0 || test x${RL} = x6 ; then
++    if ps -fp 1 | grep -q 'init boot' ; then
++       RL=S
++    fi
++fi
++
++## Handles shutdown sequences VERY safely
++## i.e.: forget about policy, and do all we can to run the script.
++## BTW, why the heck are we being run in a shutdown runlevel?!
++if test x${RL} = x0 || test x${RL} = x6 ; then
++    FORCE=yes
++    RETRY=yes
++    POLICYHELPER=
++    BEQUIET=
++    printerror ----------------------------------------------------
++    printerror WARNING: invoke-rc.d called during shutdown sequence
++    printerror enabling safe mode: initscript policy layer disabled
++    printerror ----------------------------------------------------
++fi
++
++## Verifies the existance of proper S??initscriptID and K??initscriptID 
++## *links* in the proper /etc/rc?.d/ directory
++verifyrclink () {
++  #
++  # verifies if parameters are non-dangling symlinks
++  # all parameters are verified
++  #
++  doexit=
++  while test $# -gt 0 ; do
++    if test ! -L "$1" ; then
++        printerror not a symlink: $1
++        doexit=102
++    fi
++    if test ! -f "$1" ; then
++        printerror dangling symlink: $1
++        doexit=102
++    fi
++    shift
++  done
++  if test x${doexit} != x && test x${RETRY} = x; then
++     exit ${doexit}
++  fi
++  return 0
++}
++
++# we do handle multiple links per runlevel
++# but we don't handle embedded blanks in link names :-(
++if test x${RL} != x ; then
++    SLINK=`ls -d -Q ${RCDPREFIX}${RL}.d/S[0-9][0-9]${INITSCRIPTID} 2>/dev/null | xargs`
++    KLINK=`ls -d -Q ${RCDPREFIX}${RL}.d/K[0-9][0-9]${INITSCRIPTID} 2>/dev/null | xargs`
++    SSLINK=`ls -d -Q ${RCDPREFIX}S.d/S[0-9][0-9]${INITSCRIPTID} 2>/dev/null | xargs`
++
++    verifyrclink ${SLINK} ${KLINK} ${SSLINK}
++fi
++
++testexec () {
++  #
++  # returns true if any of the parameters is
++  # executable (after following links)
++  #
++  while test $# -gt 0 ; do
++    if test -x "$1" ; then
++       return 0
++    fi
++    shift
++  done
++  return 1
++}
++
++RC=
++
++###
++### LOCAL INITSCRIPT POLICY: Enforce need of a start entry
++### in either runlevel S or current runlevel to allow start
++### or restart.
++###
++case ${ACTION} in
++  start|restart)
++    if testexec ${SLINK} ; then
++	RC=104
++    elif testexec ${KLINK} ; then
++	RC=101
++    elif testexec ${SSLINK} ; then
++	RC=104
++    fi
++  ;;
++esac
++
++# test if /etc/init.d/initscript is actually executable
++if testexec "${INITDPREFIX}${INITSCRIPTID}" ; then
++    if test x${RC} = x && test x${MODE} = xquery ; then
++        RC=105
++    fi
++
++    # call policy layer
++    querypolicy
++    case ${RC} in
++        101|104)
++           ;;
++        *) if test x${MODE} != xquery ; then
++	       printerror policy-rc.d returned error status ${RC}
++	       if test x${RETRY} = x ; then
++	           exit ${RC}
++               else
++    	           RC=102
++    	       fi
++           fi
++           ;;
++    esac
++else
++    ###
++    ### LOCAL INITSCRIPT POLICY: non-executable initscript; deny exec.
++    ### (this is common sense, actually :^P )
++    ###
++    RC=101
++fi
++
++## Handles --query
++if test x${MODE} = xquery ; then
++    exit ${RC}
++fi
++
++
++setechoactions () {
++    if test $# -gt 1 ; then
++	echoaction=true
++    else
++	echoaction=
++    fi
++}
++getnextaction () {
++    saction=$1
++    shift
++    ACTION="$@"
++}
++
++## Executes initscript
++## note that $ACTION is a space-separated list of actions
++## to be attempted in order until one suceeds.
++if test x${FORCE} != x || test ${RC} -eq 104 ; then
++    if testexec "${INITDPREFIX}${INITSCRIPTID}" ; then
++	RC=102
++	setechoactions ${ACTION}
++	while test ! -z "${ACTION}" ; do
++	    getnextaction ${ACTION}
++	    if test ! -z ${echoaction} ; then
++		printerror executing initscript action \"${saction}\"...
++	    fi
++
++	    "${INITDPREFIX}${INITSCRIPTID}" "${saction}" "$@" && exit 0
++	    RC=$?
++
++	    if test ! -z "${ACTION}" ; then
++		printerror action \"${saction}\" failed, trying next action...
++	    fi
++	done
++	printerror initscript ${INITSCRIPTID}, action \"${saction}\" failed.
++	exit ${RC}
++    fi
++    exit 102
++fi
++
++## Handles --disclose-deny and denied "status" action (bug #381497)
++if test ${RC} -eq 101 && test x${RETURNFAILURE} = x ; then
++    if test "x${ACTION%% *}" = "xstatus"; then
++	printerror emulating initscript action \"status\", returning \"unknown\"
++	RC=4
++    else
++        RC=0
++    fi
++else
++    formataction ${ACTION}
++    printerror initscript ${naction} \"${printaction}\" not executed.
++fi
++
++exit ${RC}
+diff -ruN sysvinit-2.87dsf/sysv-rc/sbin/update-rc.d sysvinit/sysv-rc//sbin/update-rc.d
+--- sysvinit-2.87dsf/sysv-rc/sbin/update-rc.d	1970-01-01 09:00:00.000000000 +0900
++++ sysvinit/sysv-rc//sbin/update-rc.d	2011-07-26 02:28:52.516000852 +0900
+@@ -0,0 +1,591 @@
++#! /usr/bin/perl
++#
++# update-rc.d	Update the links in /etc/rc[0-9S].d/
++#
++
++use strict;
++use warnings;
++
++my $initd = "/etc/init.d";
++my $etcd  = "/etc/rc";
++my $notreally = 0;
++
++# Save last action to this directory
++my $archive = "/var/lib/update-rc.d";
++
++# Print usage message and die.
++
++sub usage {
++	print STDERR "update-rc.d: error: @_\n" if ($#_ >= 0);
++	print STDERR <<EOF;
++usage: update-rc.d [-n] [-f] <basename> remove
++       update-rc.d [-n] <basename> defaults [NN | SS KK]
++       update-rc.d [-n] <basename> start|stop NN runlvl [runlvl] [...] .
++       update-rc.d [-n] <basename> disable|enable [S|2|3|4|5]
++		-n: not really
++		-f: force
++
++The disable|enable API is not stable and might change in the future.
++EOF
++	exit (1);
++}
++
++# Dependency based boot sequencing is the default, but upgraded
++# systems might keep the legacy ordering until the sysadm choose to
++# migrate to the new ordering method.
++if ( ! -f "/etc/init.d/.legacy-bootordering" ) {
++    info("using dependency based boot sequencing");
++    exit insserv_updatercd(@ARGV);
++}
++
++# Check out options.
++my $force;
++
++my @orig_argv = @ARGV;
++
++while($#ARGV >= 0 && ($_ = $ARGV[0]) =~ /^-/) {
++	shift @ARGV;
++	if (/^-n$/) { $notreally++; next }
++	if (/^-f$/) { $force++; next }
++	if (/^-h|--help$/) { &usage; }
++	&usage("unknown option");
++}
++
++sub save_last_action {
++    my ($script, @arguments) = @_;
++
++    return if $notreally;
++
++    open(FILE, ">", "$archive/${script}.new") || die "unable to write to $archive/${script}.new";
++    print FILE join(" ","update-rc.d",@arguments), "\n";
++    close(FILE);
++    rename "$archive/${script}.new", "$archive/${script}";
++}
++
++sub remove_last_action {
++    my ($script) = @_;
++    unlink "$archive/$script";
++}
++
++# Action.
++
++&usage() if ($#ARGV < 1);
++my $bn = shift @ARGV;
++
++unless ($bn =~ m/[a-zA-Z0-9+.-]+/) {
++    print STDERR "update-rc.d: illegal character in name '$bn'\n";
++    exit (1);
++}
++
++if ($ARGV[0] ne 'remove') {
++    if (! -f "$initd/$bn") {
++	print STDERR "update-rc.d: $initd/$bn: file does not exist\n";
++	exit (1);
++    }
++    &parse_lsb_header("$initd/$bn");
++    &cmp_args_with_defaults($bn, $ARGV[0], @ARGV);
++} elsif (-f "$initd/$bn") {
++    if (!$force) {
++	printf STDERR "update-rc.d: $initd/$bn exists during rc.d purge (use -f to force)\n";
++	exit (1);
++    }
++}
++
++my @startlinks;
++my @stoplinks;
++
++$_ = $ARGV[0];
++if    (/^remove$/)       { &checklinks ("remove"); remove_last_action($bn); }
++elsif (/^defaults$/)     { &defaults (@ARGV); &makelinks; save_last_action($bn, @orig_argv); }
++elsif (/^(start|stop)$/) { &startstop (@ARGV); &makelinks; save_last_action($bn, @orig_argv); }
++elsif (/^(dis|en)able$/) { &toggle (@ARGV); &makelinks; save_last_action($bn, @orig_argv); }
++else                     { &usage; }
++
++exit (0);
++
++sub info {
++    print STDOUT "update-rc.d: @_\n";
++}
++
++sub warning {
++    print STDERR "update-rc.d: warning: @_\n";
++}
++
++sub error {
++    print STDERR "update-rc.d: error: @_\n";
++    exit (1);
++}
++
++sub error_code {
++    my $rc = shift;
++    print STDERR "update-rc.d: error: @_\n";
++    exit ($rc);
++}
++
++# Check if there are links in /etc/rc[0-9S].d/ 
++# Remove if the first argument is "remove" and the links 
++# point to $bn.
++
++sub is_link () {
++    my ($op, $fn, $bn) = @_;
++    if (! -l $fn) {
++	warning "$fn is not a symbolic link\n";
++	return 0;
++    } else {
++	my $linkdst = readlink ($fn);
++	if (! defined $linkdst) {
++	    die ("update-rc.d: error reading symbolic link: $!\n");
++	}
++	if (($linkdst ne "../init.d/$bn") && ($linkdst ne "$initd/$bn")) {
++	    warning "$fn is not a link to ../init.d/$bn or $initd/$bn\n";
++	    return 0;
++	}
++    }
++    return 1;
++}
++
++sub checklinks {
++    my ($i, $found, $fn, $islnk);
++
++    print " Removing any system startup links for $initd/$bn ...\n"
++	if (defined $_[0] && $_[0] eq 'remove');
++
++    $found = 0;
++
++    foreach $i (0..9, 'S') {
++	unless (chdir ("$etcd$i.d")) {
++	    next if ($i =~ m/^[789S]$/);
++	    die("update-rc.d: chdir $etcd$i.d: $!\n");
++	}
++	opendir(DIR, ".");
++	my $saveBN=$bn;
++	$saveBN =~ s/\+/\\+/g;
++	foreach $_ (readdir(DIR)) {
++	    next unless (/^[SK]\d\d$saveBN$/);
++	    $fn = "$etcd$i.d/$_";
++	    $found = 1;
++	    $islnk = &is_link ($_[0], $fn, $bn);
++	    next unless (defined $_[0] and $_[0] eq 'remove');
++	    if (! $islnk) {
++		print "   $fn is not a link to ../init.d/$bn; not removing\n"; 
++		next;
++	    }
++	    print "   $etcd$i.d/$_\n";
++	    next if ($notreally);
++	    unlink ("$etcd$i.d/$_") ||
++		die("update-rc.d: unlink: $!\n");
++	}
++	closedir(DIR);
++    }
++    $found;
++}
++
++sub parse_lsb_header {
++    my $initdscript = shift;
++    my %lsbinfo;
++    my $lsbheaders = "Provides|Required-Start|Required-Stop|Default-Start|Default-Stop";
++    open(INIT, "<$initdscript") || die "error: unable to read $initdscript";
++    while (<INIT>) {
++        chomp;
++        $lsbinfo{'found'} = 1 if (m/^\#\#\# BEGIN INIT INFO\s*$/);
++        last if (m/\#\#\# END INIT INFO\s*$/);
++        if (m/^\# ($lsbheaders):\s*(\S?.*)$/i) {
++    	$lsbinfo{lc($1)} = $2;
++        }
++    }
++    close(INIT);
++
++    # Check that all the required headers are present
++    if (!$lsbinfo{found}) {
++	printf STDERR "update-rc.d: warning: $initdscript missing LSB information\n";
++	printf STDERR "update-rc.d: see <http://wiki.debian.org/LSBInitScripts>\n";
++    } else {
++        for my $key (split(/\|/, lc($lsbheaders))) {
++            if (!exists $lsbinfo{$key}) {
++                warning "$initdscript missing LSB keyword '$key'\n";
++            }
++        }
++    }
++}
++
++
++# Process the arguments after the "enable" or "disable" keyword.
++
++sub toggle {
++    my @argv = @_;
++    my ($action, %lvls, @start, @stop, @xstartlinks);
++
++    if (!&checklinks) {
++	print " System start/stop links for $initd/$bn do not exist.\n";
++	exit (0);
++    }
++
++    $action = $argv[0];
++    if ($#argv > 1) {
++	while ($#argv > 0 && shift @argv) {
++	    if ($argv[0] =~ /^[S2-5]$/) {
++		$lvls{$argv[0]}++;
++	    } else {
++		&usage ("expected 'S' '2' '3' '4' or '5'");
++	    }
++	}
++    } else {
++	$lvls{$_}++ for ('S', '2', '3', '4', '5');
++    }
++
++    push(@start, glob($etcd . '[2-5S].d/[KS][0-9][0-9]' . $bn));
++
++    foreach (@start) {
++	my $islink = &is_link (undef, $_, $bn);
++	next if !$islink;
++
++	next unless my ($lvl, $sk, $seq) = m/^$etcd([2-5S])\.d\/([SK])([0-9]{2})$bn$/;
++	$startlinks[$lvl] = $sk . $seq;
++
++	if ($action eq 'disable' and $sk eq 'S' and $lvls{$lvl}) {
++	    $xstartlinks[$lvl] = 'K' . sprintf "%02d", (100 - $seq);
++	} elsif ($action eq 'enable' and $sk eq 'K' and $lvls{$lvl}) {
++	    $xstartlinks[$lvl] = 'S' . sprintf "%02d", -($seq - 100);
++	} else {
++	    $xstartlinks[$lvl] = $sk . $seq;
++	}
++    }
++
++    push(@stop, glob($etcd . '[016].d/[KS][0-9][0-9]' . $bn));
++
++    foreach (@stop) {
++	my $islink = &is_link (undef, $_, $bn);
++	next if !$islink;
++
++	next unless my ($lvl, $sk, $seq) = m/^$etcd([016])\.d\/([SK])([0-9]{2})$bn$/;
++	$stoplinks[$lvl] = $sk . $seq;
++    }
++
++    if ($action eq 'disable') {
++	print " Disabling system startup links for $initd/$bn ...\n";
++    } elsif ($action eq 'enable') {
++	print " Enabling system startup links for $initd/$bn ...\n";
++    }
++
++    &checklinks ("remove");
++    @startlinks = @xstartlinks;
++
++    1;
++}
++
++# Process the arguments after the "defaults" keyword.
++
++sub defaults {
++    my @argv = @_;
++    my ($start, $stop) = (20, 20);
++
++    &usage ("defaults takes only one or two codenumbers") if ($#argv > 2);
++    $start = $stop = $argv[1] if ($#argv >= 1);
++    $stop  =         $argv[2] if ($#argv >= 2);
++    &usage ("codenumber must be a number between 0 and 99")
++	if ($start !~ /^\d\d?$/ || $stop  !~ /^\d\d?$/);
++
++    $start = sprintf("%02d", $start);
++    $stop  = sprintf("%02d", $stop);
++
++    $stoplinks[$_]  = "K$stop"  for (0, 1, 6);
++    $startlinks[$_] = "S$start" for (2, 3, 4, 5);
++
++    1;
++}
++
++# Process the arguments after the start or stop keyword.
++
++sub startstop {
++    my @argv = @_;
++    my($letter, $NN, $level);
++
++    while ($#argv >= 0) {
++	if    ($argv[0] eq 'start') { $letter = 'S'; }
++	elsif ($argv[0] eq 'stop')  { $letter = 'K'; }
++	else {
++	    &usage("expected start|stop");
++	}
++
++	if ($argv[1] !~ /^\d\d?$/) {
++	    &usage("expected NN after $argv[0]");
++	}
++	$NN = sprintf("%02d", $argv[1]);
++
++	if ($argv[-1] ne '.') {
++	    &usage("start|stop arguments not terminated by \".\"");
++	}
++
++	shift @argv; shift @argv;
++	$level = shift @argv;
++	do {
++	    if ($level !~ m/^[0-9S]$/) {
++		&usage(
++		       "expected runlevel [0-9S] (did you forget \".\" ?)");
++	    }
++	    if (! -d "$etcd$level.d") {
++		print STDERR
++		    "update-rc.d: $etcd$level.d: no such directory\n";
++		exit(1);
++	    }
++	    $level = 99 if ($level eq 'S');
++	    $startlinks[$level] = "$letter$NN" if ($letter eq 'S');
++	    $stoplinks[$level]  = "$letter$NN" if ($letter eq 'K');
++	} while (($level = shift @argv) ne '.');
++    }
++    1;
++}
++
++# Create the links.
++
++sub makelinks {
++    my($t, $i);
++    my @links;
++
++    if (&checklinks) {
++	print " System start/stop links for $initd/$bn already exist.\n";
++	return 0;
++    }
++    print " Adding system startup for $initd/$bn ...\n";
++
++    # nice unreadable perl mess :)
++
++    for($t = 0; $t < 2; $t++) {
++	@links = $t ? @startlinks : @stoplinks;
++	for($i = 0; $i <= $#links; $i++) {
++	    my $lvl = $i;
++	    $lvl = 'S' if ($i == 99);
++	    next if (!defined $links[$i] or $links[$i] eq '');
++	    print "   $etcd$lvl.d/$links[$i]$bn -> ../init.d/$bn\n";
++	    next if ($notreally);
++	    symlink("../init.d/$bn", "$etcd$lvl.d/$links[$i]$bn")
++		|| die("update-rc.d: symlink: $!\n");
++	}
++    }
++
++    1;
++}
++
++## Dependency based
++sub insserv_updatercd {
++    my @args = @_;
++    my @opts;
++    my $scriptname;
++    my $action;
++    my $notreally = 0;
++
++    my @orig_argv = @args;
++
++    while($#args >= 0 && ($_ = $args[0]) =~ /^-/) {
++        shift @args;
++        if (/^-n$/) { push(@opts, $_); $notreally++; next }
++        if (/^-f$/) { push(@opts, $_); next }
++        if (/^-h|--help$/) { &usage; }
++        usage("unknown option");
++    }
++
++    usage("not enough arguments") if ($#args < 1);
++
++    $scriptname = shift @args;
++    $action = shift @args;
++    if ("remove" eq $action) {
++        if ( -f "/etc/init.d/$scriptname" ) {
++            my $rc = system("insserv", @opts, "-r", $scriptname) >> 8;
++            if (0 == $rc && !$notreally) {
++                remove_last_action($scriptname);
++            }
++            error_code($rc, "insserv rejected the script header") if $rc;
++            exit $rc;
++        } else {
++            # insserv removes all dangling symlinks, no need to tell it
++            # what to look for.
++            my $rc = system("insserv", @opts) >> 8;
++            if (0 == $rc && !$notreally) {
++                remove_last_action($scriptname);
++            }
++            error_code($rc, "insserv rejected the script header") if $rc;
++            exit $rc;
++        }
++    } elsif ("defaults" eq $action || "start" eq $action ||
++             "stop" eq $action) {
++        # All start/stop/defaults arguments are discarded so emit a
++        # message if arguments have been given and are in conflict
++        # with Default-Start/Default-Stop values of LSB comment.
++        cmp_args_with_defaults($scriptname, $action, @args);
++
++        if ( -f "/etc/init.d/$scriptname" ) {
++            my $rc = system("insserv", @opts, $scriptname) >> 8;
++            if (0 == $rc && !$notreally) {
++                save_last_action($scriptname, @orig_argv);
++            }
++            error_code($rc, "insserv rejected the script header") if $rc;
++            exit $rc;
++        } else {
++            error("initscript does not exist: /etc/init.d/$scriptname");
++        }
++    } elsif ("disable" eq $action || "enable" eq $action) {
++        insserv_toggle($notreally, $action, $scriptname, @args);
++        # Call insserv to resequence modified links
++        my $rc = system("insserv", @opts, $scriptname) >> 8;
++        if (0 == $rc && !$notreally) {
++            save_last_action($scriptname, @orig_argv);
++        }
++        error_code($rc, "insserv rejected the script header") if $rc;
++        exit $rc;
++    } else {
++        usage();
++    }
++}
++
++sub parse_def_start_stop {
++    my $script = shift;
++    my (%lsb, @def_start_lvls, @def_stop_lvls);
++
++    open my $fh, '<', $script or error("unable to read $script");
++    while (<$fh>) {
++        chomp;
++        if (m/^### BEGIN INIT INFO$/) {
++            $lsb{'begin'}++;
++        }
++        elsif (m/^### END INIT INFO$/) {
++            $lsb{'end'}++;
++            last;
++        }
++        elsif ($lsb{'begin'} and not $lsb{'end'}) {
++            if (m/^# Default-Start:\s*(\S?.*)$/) {
++                @def_start_lvls = split(' ', $1);
++            }
++            if (m/^# Default-Stop:\s*(\S?.*)$/) {
++                @def_stop_lvls = split(' ', $1);
++            }
++        }
++    }
++    close($fh);
++
++    return (\@def_start_lvls, \@def_stop_lvls);
++}
++
++sub lsb_header_for_script {
++    my $name = shift;
++
++    foreach my $file ("/etc/insserv/overrides/$name", "/etc/init.d/$name",
++                      "/usr/share/insserv/overrides/$name") {
++        return $file if -s $file;
++    }
++
++    error("cannot find a LSB script for $name");
++}
++
++sub cmp_args_with_defaults {
++    my ($name, $act) = (shift, shift);
++    my ($lsb_start_ref, $lsb_stop_ref, $arg_str, $lsb_str);
++    my (@arg_start_lvls, @arg_stop_lvls, @lsb_start_lvls, @lsb_stop_lvls);
++
++    ($lsb_start_ref, $lsb_stop_ref) = parse_def_start_stop("/etc/init.d/$name");
++    @lsb_start_lvls = @$lsb_start_ref;
++    @lsb_stop_lvls  = @$lsb_stop_ref;
++    return if (!@lsb_start_lvls and !@lsb_stop_lvls);
++
++    if ($act eq 'defaults') {
++        @arg_start_lvls = (2, 3, 4, 5);
++        @arg_stop_lvls  = (0, 1, 6);
++    } elsif ($act eq 'start' or $act eq 'stop') {
++        my $start = $act eq 'start' ? 1 : 0;
++        my $stop = $act eq 'stop' ? 1 : 0;
++
++        # The legacy part of this program passes arguments starting with
++        # "start|stop NN x y z ." but the insserv part gives argument list
++        # starting with sequence number (ie. strips off leading "start|stop")
++        # Start processing arguments immediately after the first seq number.
++        my $argi = $_[0] eq $act ? 2 : 1;
++
++        while (defined $_[$argi]) {
++            my $arg = $_[$argi];
++
++            # Runlevels 0 and 6 are always stop runlevels
++            if ($arg eq 0 or $arg eq 6) {
++		$start = 0; $stop = 1; 
++            } elsif ($arg eq 'start') {
++                $start = 1; $stop = 0; $argi++; next;
++            } elsif ($arg eq 'stop') {
++                $start = 0; $stop = 1; $argi++; next;
++            } elsif ($arg eq '.') {
++                next;
++            }
++            push(@arg_start_lvls, $arg) if $start;
++            push(@arg_stop_lvls, $arg) if $stop;
++        } continue {
++            $argi++;
++        }
++    }
++
++    if ($#arg_start_lvls != $#lsb_start_lvls or
++        join("\0", sort @arg_start_lvls) ne join("\0", sort @lsb_start_lvls)) {
++        $arg_str = @arg_start_lvls ? "@arg_start_lvls" : "none";
++        $lsb_str = @lsb_start_lvls ? "@lsb_start_lvls" : "none";
++        warning "$name start runlevel arguments ($arg_str) do not match",
++                "LSB Default-Start values ($lsb_str)";
++    }
++    if ($#arg_stop_lvls != $#lsb_stop_lvls or
++        join("\0", sort @arg_stop_lvls) ne join("\0", sort @lsb_stop_lvls)) {
++        $arg_str = @arg_stop_lvls ? "@arg_stop_lvls" : "none";
++        $lsb_str = @lsb_stop_lvls ? "@lsb_stop_lvls" : "none";
++        warning "$name stop runlevel arguments ($arg_str) do not match",
++                "LSB Default-Stop values ($lsb_str)";
++    }
++}
++
++sub insserv_toggle {
++    my ($dryrun, $act, $name) = (shift, shift, shift);
++    my (@toggle_lvls, $start_lvls, $stop_lvls, @symlinks);
++    my $lsb_header = lsb_header_for_script($name);
++
++    # Extra arguments to disable|enable action are runlevels. If none
++    # given parse LSB info for Default-Start value.
++    if ($#_ >= 0) {
++        @toggle_lvls = @_;
++    } else {
++        ($start_lvls, $stop_lvls) = parse_def_start_stop($lsb_header);
++        @toggle_lvls = @$start_lvls;
++        if ($#toggle_lvls < 0) {
++            error("$name Default-Start contains no runlevels, aborting.");
++        }
++    }
++
++    # Find symlinks in rc.d directories. Refuse to modify links in runlevels
++    # not used for normal system start sequence.
++    for my $lvl (@toggle_lvls) {
++        if ($lvl !~ /^[S2345]$/) {
++            warning("$act action will have no effect on runlevel $lvl");
++            next;
++        }
++        push(@symlinks, $_) for glob("/etc/rc$lvl.d/[SK][0-9][0-9]$name");
++    }
++
++    if (!@symlinks) {
++        error("no runlevel symlinks to modify, aborting!");
++    }
++
++    # Toggle S/K bit of script symlink.
++    for my $cur_lnk (@symlinks) {
++        my $sk;
++        my @new_lnk = split(//, $cur_lnk);
++
++        if ("disable" eq $act) {
++            $sk = rindex($cur_lnk, '/S') + 1;
++            next if $sk < 1;
++            $new_lnk[$sk] = 'K';
++        } else {
++            $sk = rindex($cur_lnk, '/K') + 1;
++            next if $sk < 1;
++            $new_lnk[$sk] = 'S';
++        }
++
++        if ($dryrun) {
++            printf("rename(%s, %s)\n", $cur_lnk, join('', @new_lnk));
++            next;
++        }
++
++        rename($cur_lnk, join('', @new_lnk)) or error($!);
++    }
++}

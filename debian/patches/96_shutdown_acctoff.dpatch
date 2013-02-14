@@ -1,0 +1,21 @@
+Purpose: Debian accton require an argument since at least 2009-07-11.
+Authour: Petter Reinholdtsen
+Fixes:   #536574
+Status:  unknown
+
+--- a/src/shutdown.c
++++ b/src/shutdown.c
+@@ -331,7 +331,12 @@
+ 	write_wtmp("shutdown", "~~", 0, RUN_LVL, "~~");
+ 
+ 	/* This is for those who have quota installed. */
+-	spawn(1, "accton", NULL);
++	spawn(1, "accton", "off", NULL);
++/* This is an alternative way to disable accounting, saving a fork()
++#if _BSD_SOURCE || (_XOPEN_SOURCE && _XOPEN_SOURCE < 500)
++	if (acct(NULL)) perror("acct: ");
++#endif
++*/
+ 	spawn(1, "quotaoff", "-a", NULL);
+ 
+ 	sync();
