@@ -1,0 +1,19 @@
+Purpose: Try to get kdm and gdm to start earlier during boot.
+Fixes:   None.
+Authour: Petter Reinholdtsen
+Status:  Not applied upstream
+Index: a/makeboot.c
+===================================================================
+--- a/makeboot.c	(revision 1780)
++++ b/makeboot.c	(working copy)
+@@ -236,7 +236,9 @@
+ 	for (node = tree_list; node; node = node->next) {
+ 		int importance = 0;
+ 
+-		if (! strcmp(node->name, "xdm"))
++		if (! strcmp(node->name, "xdm")
++                    || ! strcmp(node->name, "gdm")
++                    || ! strcmp(node->name, "kdm"))
+ 			importance = 100;
+ 
+ 		if (! strncmp(node->name, "early", 5))

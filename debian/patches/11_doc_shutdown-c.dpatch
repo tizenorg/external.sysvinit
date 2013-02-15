@@ -1,0 +1,22 @@
+Purpose: Make it clear that shutdown -c can only cancel a waiting shutdown,
+         not an active one.
+Authour: Petter Reinholdtsen, based on text proposal from Dan Jacobson
+Fixes:   #374038
+Status:  not sent upstream
+
+--- a/man/shutdown.8
++++ b/man/shutdown.8
+@@ -81,9 +81,10 @@
+ .\"}}}
+ .\"{{{  -c
+ .IP \fB\-c\fP
+-Cancel an already running shutdown. With this option it is of course
+-not possible to give the \fBtime\fP argument, but you can enter a
+-explanatory message on the command line that will be sent to all users.
++Cancel a waiting shutdown. ("shutdown now" is no longer waiting.) With
++this option it is of course not possible to give the time argument, but
++you can enter explanatory message arguments on the command line that
++will be sent to all users.
+ .\"}}}
+ .\"{{{  time
+ .IP \fItime\fP

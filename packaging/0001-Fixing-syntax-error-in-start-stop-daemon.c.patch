@@ -1,0 +1,32 @@
+From 5c9ebe6dfdd14e24776206782e044f75665e8dfa Mon Sep 17 00:00:00 2001
+From: pkarurmo <prajwal.karur.mohan@intel.com>
+Date: Fri, 6 Apr 2012 11:11:36 -0700
+Subject: [PATCH] Fixing syntax error in start-stop-daemon.c
+
+---
+ contrib/start-stop-daemon.c |    4 ++--
+ 1 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/contrib/start-stop-daemon.c b/contrib/start-stop-daemon.c
+index 6795ebd..045ede3 100644
+--- a/contrib/start-stop-daemon.c
++++ b/contrib/start-stop-daemon.c
+@@ -112,13 +112,13 @@ start-stop-daemon for Debian Linux - small and fast C version written by\n\
+ Marek Michalkiewicz <marekm@i17linuxb.ists.pwr.wroc.pl>, public domain.\n\
+ VERSION \n\
+ \n\
+-Usage:
++Usage:\
+     start-stop-daemon -S|--start options ... -- arguments ...\n\
+     start-stop-daemon -K|--stop options ...\n\
+     start-stop-daemon -H|--help\n\
+     start-stop-daemon -V|--version\n\
+ \n\
+-Options (at least one of --exec|--pidfile|--user is required):
++Options (at least one of --exec|--pidfile|--user is required):\
+     -x|--exec <executable>       program to start/check if it is running\n\
+     -p|--pidfile <pid-file>      pid file to check\n\
+     -u|--user <username>|<uid>   stop this user's processes\n\
+-- 
+1.7.5.4
+
