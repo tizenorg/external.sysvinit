@@ -1,0 +1,90 @@
+# Italian translation of the sysvinit debconf template
+# This file is distributed under the same license as the sysvinit package
+# Luca Monducci <luca.mo@tiscali.it>, 2009.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: sysvinit 2.87\n"
+"Report-Msgid-Bugs-To: sysvinit@packages.debian.org\n"
+"POT-Creation-Date: 2009-10-25 21:24+0100\n"
+"PO-Revision-Date: 2009-10-17 15:04+0200\n"
+"Last-Translator: Luca Monducci <luca.mo@tiscali.it>\n"
+"Language-Team: Italian <debian-l10n-italian@lists.debian.org>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. Type: boolean
+#. Description
+#: ../sysv-rc.templates:1001
+msgid "Migrate legacy boot sequencing to dependency-based sequencing?"
+msgstr ""
+"Migrare la vecchia sequenza d'avvio alla sequenza basata su dipendenze?"
+
+#. Type: boolean
+#. Description
+#: ../sysv-rc.templates:1001
+msgid ""
+"The boot system is prepared to migrate to dependency-based sequencing. This "
+"is an irreversible step, but one that is recommended: it allows the boot "
+"process to be optimized for speed and efficiency, and provides a more "
+"resilient framework for development."
+msgstr ""
+"Il sistema d'avvio è pronto per migrare alla sequenza basata su dipendenze. "
+"Questo passo non è reversibile, ma è quello raccomandato: permetterà di "
+"ottimizzare la velocità e l'efficienza del processo d'avvio e offre "
+"un'infrastruttura più flessibile per lo sviluppo."
+
+#. Type: boolean
+#. Description
+#: ../sysv-rc.templates:1001
+msgid ""
+"A full rationale is detailed in /usr/share/doc/sysv-rc/README.Debian. If you "
+"choose not to migrate now, you can do so later by running \"dpkg-reconfigure "
+"sysv-rc\"."
+msgstr ""
+"È possibile trovare le motivazioni complete e dettagliate in /usr/share/doc/"
+"sysv-rc/README.Debian. Qualora si scelga di non migrare adesso, è possibile "
+"farlo in seguito eseguendo \"dpkg-reconfigure sysv-rc\"."
+
+#. Type: note
+#. Description
+#: ../sysv-rc.templates:2001
+msgid "Unable to migrate to dependency-based boot system"
+msgstr "Impossibile migrare al sistema d'avvio basato su dipedenze"
+
+#. Type: note
+#. Description
+#: ../sysv-rc.templates:2001
+msgid ""
+"Tests have determined that problems in the boot system exist which prevent "
+"migration to dependency-based boot sequencing:"
+msgstr ""
+"Le verifiche hanno determinato che nel sistema d'avvio esistente ci sono dei "
+"problemi che impediscono la migrazione alla sequenza basata su dipedenze:"
+
+#. Type: note
+#. Description
+#: ../sysv-rc.templates:2001
+msgid ""
+"If the reported problem is a local modification, it needs to be fixed "
+"manually. If it's a bug in the package, it should be reported to the BTS and "
+"fixed in the package. See http://wiki.debian.org/LSBInitScripts/"
+"DependencyBasedBoot for more information about how to fix the problems "
+"preventing migration."
+msgstr ""
+"Se il problema segnalato è dovuto a una modifica locale, è necessario "
+"correggerla manualmente. Se è dovuto a un bug di un pacchetto, dovrebbe "
+"essere segnalato al BTS e corretto nel pacchetto. Vedere http://wiki.debian."
+"org/LSBInitScripts/DependencyBasedBoot per ulteriori informazioni su come "
+"correggere i problemi che impediscono la migrazione."
+
+#. Type: note
+#. Description
+#: ../sysv-rc.templates:2001
+msgid ""
+"To reattempt the migration process after the problems have been fixed, run "
+"\"dpkg-reconfigure sysv-rc\"."
+msgstr ""
+"Per riprovare il processo di migrazione dopo aver corretto i problemi, "
+"eseguire \"dpkg-reconfigure sysv-rc\"."

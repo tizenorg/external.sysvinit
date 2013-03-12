@@ -1,0 +1,28 @@
+Purpose: Make sure bootlogd fflush() every line, even if asked not to
+	 flush to disk using fdatasync().
+Authour: Scott Gifford
+Fixes:   #542515
+Status:  not set upstream yet
+
+--- a/src/bootlogd.c.orig	2009-08-19 20:26:35.000000000 -0400
++++ a/src/bootlogd.c	2009-08-19 20:26:56.000000000 -0400
+@@ -338,7 +338,7 @@
+ 				break;
+ 			case '\n':
+ 				didnl = 1;
+-				dosync = syncalot;
++				dosync = 1;
+ 				break;
+ 			case '\t':
+ 				line.pos += (line.pos / 8 + 1) * 8;
+@@ -370,7 +370,9 @@
+ 
+ 	if (dosync) {
+ 		fflush(fp);
+-		fdatasync(fileno(fp));
++		if (syncalot) {
++			fdatasync(fileno(fp));
++		}
+ 	}
+ 
+ 	outptr += olen;
