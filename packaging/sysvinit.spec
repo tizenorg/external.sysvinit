@@ -34,6 +34,7 @@ Patch16: add_initscripts.patch
 Patch18: 64_init_add_cmd_for_reboot.dpatch
 Patch19: 0001-Fixing-syntax-error-in-start-stop-daemon.c.patch
 Patch20: systemd_param.patch
+Patch21: 99_ftbfs_define_enoioctlcmd.patch
 
 %description
 The sysvinit package contains a group of processes that control
@@ -88,6 +89,7 @@ Requires: /lib/lsb/init-functions
 %patch18 -p1
 %patch19 -p1
 %patch20 -p1
+%patch21 -p1
 
 %build
 cp %{SOURCE1001} .

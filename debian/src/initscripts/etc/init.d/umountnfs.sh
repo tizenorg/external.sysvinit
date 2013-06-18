@@ -86,6 +86,10 @@ do_stop () {
 		ES=$?
 		[ "$VERBOSE" = no ] || log_action_end_msg $ES
 	fi
+
+	# emit unmounted-remote-filesystems hook point so any upstart jobs
+	# that support remote filesystems can be stopped
+	initctl --quiet emit unmounted-remote-filesystems
 }
 
 case "$1" in
