@@ -131,6 +131,10 @@ do
 	done;
 done
 
+# license
+mkdir -p %{buildroot}/usr/share/license
+cp LICENSE %{buildroot}/usr/share/license/%{name}
+
 %post
 echo ".... sysvinit post ....."
 [ -f /etc/inittab ] || /bin/cp -p /usr/share/sysvinit/inittab /etc/inittab
@@ -314,6 +318,7 @@ rm -rf $RPM_BUILD_ROOT
 %attr(755,root,root)/usr/sbin/service
 /usr/bin/last
 /usr/bin/mesg
+/usr/share/license/%{name}
 
 %files -n initscripts
 %manifest %{name}.manifest
