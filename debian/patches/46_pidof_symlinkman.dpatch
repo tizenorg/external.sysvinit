@@ -1,0 +1,20 @@
+Purpose: Add note to pidof manual page about the use of readlink(2)
+Authour: Bill Nottingham and Fedora.
+Fixes:   -
+Status:  unknown
+
+--- a/man/pidof.8
++++ b/man/pidof.8
+@@ -50,7 +50,11 @@
+ When \fIpidof\fP is invoked with a full pathname to the program it
+ should find the pid of, it is reasonably safe. Otherwise it is possible
+ that it returns pids of running programs that happen to have the same name
+-as the program you're after but are actually other programs.
++as the program you're after but are actually other programs. Note that
++that the executable name of running processes is calculated with
++.BR readlink (2),
++so symbolic links to executables will also match.
++
+ .SH SEE ALSO
+ .BR shutdown (8),
+ .BR init (8),
