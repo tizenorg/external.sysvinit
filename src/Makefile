@@ -15,13 +15,13 @@ STATIC	=
 
 # For some known distributions we do not build all programs, otherwise we do.
 BIN	=
-SBIN	= init halt shutdown runlevel killall5
+SBIN	= init halt shutdown runlevel killall5 fstab-decode
 USRBIN	= last mesg
 
 MAN1	= last.1 lastb.1 mesg.1
 MAN5	= initscript.5 inittab.5
 MAN8	= halt.8 init.8 killall5.8 pidof.8 poweroff.8 reboot.8 runlevel.8
-MAN8	+= shutdown.8 telinit.8
+MAN8	+= shutdown.8 telinit.8 fstab-decode.8
 
 ifeq ($(DISTRO),)
 BIN	+= mountpoint
@@ -47,8 +47,8 @@ BIN_OWNER	= root
 BIN_GROUP	= root
 BIN_COMBO	= $(BIN_OWNER):$(BIN_GROUP)
 STRIP		= strip -s -R .comment
-INSTALL_EXEC	= install -o $(BIN_OWNER) -g $(BIN_GROUP) -m 755
-INSTALL_DATA	= install -o $(BIN_OWNER) -g $(BIN_GROUP) -m 644
+INSTALL_EXEC	= install -m 755
+INSTALL_DATA	= install -m 644
 MANDIR		= /usr/share/man
 
 ifeq ($(WITH_SELINUX),yes)
@@ -64,9 +64,10 @@ endif
 
 
 # Additional libs for GNU libc.
-ifneq ($(wildcard /usr/lib/libcrypt.a),)
+## Workaround for Scratchbox
+#ifneq ($(wildcard /usr/lib/libcrypt.a),)
 LCRYPT		= -lcrypt
-endif
+#endif
 
 all:		$(BIN) $(SBIN) $(USRBIN)
 
@@ -127,6 +128,8 @@ clobber:	cleanobjs
 distclean:	clobber
 
 install:
+		$(INSTALL_EXEC) -d $(ROOT)/bin/ $(ROOT)/sbin/
+		$(INSTALL_EXEC) -d $(ROOT)/usr/bin/
 		for i in $(BIN); do \
 			$(STRIP) $$i ; \
 			$(INSTALL_EXEC) $$i $(ROOT)/bin/ ; \
@@ -147,7 +150,11 @@ install:
 		if [ ! -f $(ROOT)/usr/bin/lastb ]; then \
 			ln -sf last $(ROOT)/usr/bin/lastb; \
 		fi
+		$(INSTALL_EXEC) -d $(ROOT)/usr/include/
 		$(INSTALL_DATA) initreq.h $(ROOT)/usr/include/
+		$(INSTALL_EXEC) -d $(ROOT)$(MANDIR)/man1/
+		$(INSTALL_EXEC) -d $(ROOT)$(MANDIR)/man5/
+		$(INSTALL_EXEC) -d $(ROOT)$(MANDIR)/man8/
 		for i in $(MAN1); do \
 			$(INSTALL_DATA) ../man/$$i $(ROOT)$(MANDIR)/man1/; \
 		done

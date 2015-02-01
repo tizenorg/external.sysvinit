@@ -136,7 +136,7 @@ static int findtty(char *res, const char *startdir, int rlen, dev_t dev)
 		if (!S_ISCHR(st.st_mode))
 			continue;
 		if (st.st_rdev == dev) {
-			if ((int)strlen(ent->d_name) + (int)strlen(startdir) + 1 >= rlen) {
+			if (strlen(ent->d_name) + strlen(startdir) + 1 >= rlen) {
 				fprintf(stderr, "bootlogd: console device name too long\n");
 				closedir(dir);
 				chdir(olddir);
@@ -254,9 +254,6 @@ int consolename(char *res, int rlen)
 	}
 
 #ifdef TIOCGDEV
-#ifndef ENOIOCTLCMD
-#define ENOIOCTLCMD	515
-#endif
 	if (ioctl(0, TIOCGDEV, &kdev) == 0) {
 		int r = findtty(res, "/dev", rlen, (dev_t)kdev);
 		if (0 != r)
@@ -373,7 +370,7 @@ void writelog(FILE *fp, unsigned char *ptr, int len)
 				break;
 			case '\t':
 				line.pos += (line.pos / 8 + 1) * 8;
-				if (line.pos >= (int)sizeof(line.buf))
+				if (line.pos >= sizeof(line.buf))
 					line.pos = sizeof(line.buf) - 1;
 				break;
 			case  32 ... 127:
@@ -389,7 +386,7 @@ void writelog(FILE *fp, unsigned char *ptr, int len)
 		len--;
 
 		tlen = strlen(tmp);
-		if (tlen && (line.pos + tlen < (int)sizeof(line.buf))) {
+		if (tlen && (line.pos + tlen < sizeof(line.buf))) {
 			memcpy(line.buf + line.pos, tmp, tlen);
 			line.pos += tlen;
 		}
@@ -664,7 +661,7 @@ int main(int argc, char **argv)
 		else
 			todo = endptr - outptr;
 		if (fp && todo)
-			writelog(fp, (unsigned char *)outptr, todo);
+			writelog(fp, outptr, todo);
 	}
 
 	if (fp) {

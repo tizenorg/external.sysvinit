@@ -2,7 +2,7 @@ Summary: Programs which control basic system processes
 Name: sysvinit
 Version: 2.87
 Release: 6
-License: GPL-2.0+
+License: GPLv2+
 Group: System/Base
 Url: http://savannah.nongnu.org/projects/sysvinit
 
@@ -13,28 +13,6 @@ Source1: inittab
 Source2: update-rc.d
 Source3: service
 Source1001:     %{name}.manifest
-
-Patch0: 21_ifdown_kfreebsd.patch
-Patch1: 50_bootlogd_devsubdir.patch
-Patch2: 54_bootlogd_findptyfail.patch
-Patch3: 55_bootlogd_flush.patch
-Patch4: 60_init_selinux_ifdef.patch
-Patch5: 62_init_freebsdterm.patch
-Patch6: 63_init_keep_utf8_ttyflag.patch
-Patch7: 70_compiler_warnings.patch
-Patch8: 91_sulogin_lockedpw.patch
-Patch9: 94_fstab-decode.patch
-Patch10: 96_shutdown_acctoff.patch
-Patch11: 97_init_starttest.patch
-Patch12: 98_installtarget.patch
-Patch13: startpar.patch
-Patch14: always_use_lcrypt.patch
-Patch15: dont_set_ownership.patch
-Patch16: add_initscripts.patch
-Patch18: 64_init_add_cmd_for_reboot.dpatch
-Patch19: 0001-Fixing-syntax-error-in-start-stop-daemon.c.patch
-Patch20: systemd_param.patch
-Patch21: 99_ftbfs_define_enoioctlcmd.patch
 
 %description
 The sysvinit package contains a group of processes that control
@@ -64,32 +42,18 @@ Requires: /lib/lsb/init-functions
  The scripts in this package initialize a system at boot time
  and shut it down at halt or reboot time.
 
+%package -n pidof
+Summary: find the process ID of a running program
+Group: System/Base
+Provides: /bin/pidof
+
+%description -n pidof
+ Pidof finds the process id's (pids) of the named programs.
+
 %doc_package
 
 %prep
 %setup -q -n %{name}-%{version}dsf
-
-%patch0 -p1 -b .ifdown_kfreebsd
-%patch1 -p1 -b .bootlogd_devsubdir
-%patch2 -p1 -b .bootlogd_findptyfail
-%patch3 -p1 -b .bootlogd_flush
-%patch4 -p1 -b .init_selinux_ifdef
-%patch5 -p1 -b .init_freebsdterm
-%patch6 -p1 -b .init_keep_utf8_ttyflag
-%patch7 -p1 -b .compiler_warnings
-%patch8 -p1 -b .sulogin_lockedpw
-%patch9 -p1 -b .fstab-decode
-%patch10 -p1 -b .shutdown_acctoff
-%patch11 -p1 -b .init_starttest
-%patch12 -p1 -b .installtarget
-%patch13 -p1 -b .startpar
-%patch14 -p1 -b .always_use_lcrypt
-%patch15 -p1 -b .dont_set_ownership
-%patch16 -p1
-%patch18 -p1
-%patch19 -p1
-%patch20 -p1
-%patch21 -p1
 
 %build
 cp %{SOURCE1001} .
@@ -130,12 +94,6 @@ do
 		echo "";
 	done;
 done
-
-# license
-mkdir -p %{buildroot}/usr/share/license
-cp LICENSE %{buildroot}/usr/share/license/%{name}
-cp LICENSE %{buildroot}/usr/share/license/%{name}-utils
-cp LICENSE %{buildroot}/usr/share/license/initscripts
 
 %post
 echo ".... sysvinit post ....."
@@ -290,19 +248,13 @@ rm -rf $RPM_BUILD_ROOT
 %files
 %manifest %{name}.manifest
 %defattr(-,root,root)
-/usr/share/license/%{name}
+%{_datadir}/license/%{name}
 /sbin/init
+/sbin/halt
 /sbin/runlevel
 /sbin/shutdown
-%if 0%{?simulator}
-%exclude /sbin/halt
-%exclude /sbin/poweroff
-%exclude /sbin/reboot
-%else
-/sbin/halt
 /sbin/poweroff
 /sbin/reboot
-%endif
 /sbin/telinit
 %{_datadir}/%{name}/inittab
 %{_datadir}/%{name}/update-rc.d
@@ -320,7 +272,6 @@ rm -rf $RPM_BUILD_ROOT
 %attr(755,root,root)/usr/sbin/service
 /usr/bin/last
 /usr/bin/mesg
-/usr/share/license/%{name}-utils
 
 %files -n initscripts
 %manifest %{name}.manifest
@@ -332,5 +283,8 @@ rm -rf $RPM_BUILD_ROOT
 /sbin/fsck.nfs
 /lib/init/*
 /bin/mountpoint
-/usr/share/license/initscripts
 
+%files -n pidof
+%manifest %{name}.manifest
+/bin/pidof
+/sbin/killall5

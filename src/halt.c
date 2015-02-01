@@ -8,7 +8,7 @@
  *		execute an "shutdown -r". This is for compatibility with
  *		sysvinit 2.4.
  *
- * Usage:	halt [-n] [-w] [-d] [-f] [-h] [-i] [-p]
+ * Usage:	halt [-n] [-w] [-d] [-f] [-h] [-i] [-p] cmd
  *		-n: don't sync before halting the system
  *		-w: only write a wtmp reboot record and exit.
  *		-d: don't write a wtmp record.
@@ -16,7 +16,7 @@
  *		-h: put harddisks in standby mode
  *		-i: shut down all network interfaces.
  *		-p: power down the system (if possible, otherwise halt).
- *
+ *		cmd: command which delivered to reboot syscall.
  *		Reboot and halt are both this program. Reboot
  *		is just a link to halt. Invoking the program
  *		as poweroff implies the -p option.
@@ -51,6 +51,7 @@
 
 char *Version = "@(#)halt  2.86  31-Jul-2004 miquels@cistron.nl";
 char *progname;
+char *cmd;
 
 #define KERNEL_MONITOR	1 /* If halt() puts you into the kernel monitor. */
 #define RUNLVL_PICKY	0 /* Be picky about the runlevel */
@@ -64,7 +65,7 @@ extern void write_wtmp(char *user, char *id, int pid, int type, char *line);
  */
 void usage(void)
 {
-	fprintf(stderr, "usage: %s [-n] [-w] [-d] [-f] [-h] [-i]%s\n",
+	fprintf(stderr, "usage: %s [-n] [-w] [-d] [-f] [-h] [-i] cmd%s\n",
 		progname, strcmp(progname, "halt") ? "" : " [-p]");
 	fprintf(stderr, "\t-n: don't sync before halting the system\n");
 	fprintf(stderr, "\t-w: only write a wtmp reboot record and exit.\n");
@@ -72,6 +73,7 @@ void usage(void)
 	fprintf(stderr, "\t-f: force halt/reboot, don't call shutdown.\n");
 	fprintf(stderr, "\t-h: put harddisks in standby mode.\n");
 	fprintf(stderr, "\t-i: shut down all network interfaces.\n");
+	fprintf(stderr, "\tcmd: command which delivered to reboot syscall.\n");
 	if (!strcmp(progname, "halt"))
 		fprintf(stderr, "\t-p: power down the system (if possible, otherwise halt).\n");
 	exit(1);
@@ -148,6 +150,9 @@ void do_shutdown(char *fl, char *tm)
 		args[i++] = tm;
 	}
 	args[i++] = "now";
+	if (cmd) {
+		args[i++] = cmd;
+	}
 	args[i++] = NULL;
 
 	execv("/sbin/shutdown", args);
@@ -222,7 +227,11 @@ int main(int argc, char **argv)
 				usage();
 		}
 	 }
-	if (argc != optind) usage();
+
+	if (argc > optind +1) {
+		fprintf(stderr, "%s: too many arguments.\n", argv[0]);
+		usage();
+	}
 
 	if (geteuid() != 0) {
 		fprintf(stderr, "%s: must be superuser.\n", progname);
@@ -231,6 +240,8 @@ int main(int argc, char **argv)
 
 	(void)chdir("/");
 
+	cmd = argv[optind];
+#if 0
 	if (!do_hard && !do_nothing) {
 		/*
 		 *	See if we are in runlevel 0 or 6.
@@ -239,7 +250,7 @@ int main(int argc, char **argv)
 		if (c != '0' && c != '6')
 			do_shutdown(do_reboot ? "-r" : "-h", tm);
 	}
-
+#endif
 	/*
 	 *	Record the fact that we're going down
 	 */
@@ -265,7 +276,10 @@ int main(int argc, char **argv)
 	if (do_nothing) exit(0);
 
 	if (do_reboot) {
-		init_reboot(BMAGIC_REBOOT);
+		if (cmd)
+			syscall(__NR_reboot, LINUX_REBOOT_MAGIC1, LINUX_REBOOT_MAGIC2, LINUX_REBOOT_CMD_RESTART2, argv[optind]);
+		else
+			init_reboot(BMAGIC_REBOOT);
 	} else {
 		/*
 		 *	Turn on hard reboot, CTRL-ALT-DEL will reboot now

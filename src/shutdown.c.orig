@@ -1,7 +1,7 @@
 /*
  * shutdown.c	Shut the system down.
  *
- * Usage:	shutdown [-krhfnc] time [warning message] cmd
+ * Usage:	shutdown [-krhfnc] time [warning message]
  *		  -k: don't really shutdown, only warn.
  *		  -r: reboot after shutdown.
  *		  -h: halt after shutdown.
@@ -10,7 +10,6 @@
  *		  -n: do not go through init but do it ourselves.
  *		  -c: cancel an already running shutdown.
  *		  -t secs: delay between SIGTERM and SIGKILL for init.
- *		  cmd: command which delivered to reboot syscall.
  *
  * Author:	Miquel van Smoorenburg, miquels@cistron.nl
  *
@@ -103,7 +102,7 @@ void stopit(int sig)
 void usage(void)
 {
 	fprintf(stderr,
-	"Usage:\t  shutdown [-akrhHPfnc] [-t secs] time [warning message] cmd\n"
+	"Usage:\t  shutdown [-akrhHPfnc] [-t secs] time [warning message]\n"
 	"\t\t  -a:      use /etc/shutdown.allow\n"
 	"\t\t  -k:      don't really shutdown, only warn.\n"
 	"\t\t  -r:      reboot after shutdown.\n"
@@ -115,8 +114,7 @@ void usage(void)
 	"\t\t  -n:      do not go through \"init\" but go down real fast.\n"
 	"\t\t  -c:      cancel a running shutdown.\n"
 	"\t\t  -t secs: delay between warning and kill signal.\n"
-	"\t\t  ** the \"time\" argument is mandatory! (try \"now\") **\n"
-	"\t\t cmd: command which delivered to reboot syscall.\n");
+	"\t\t  ** the \"time\" argument is mandatory! (try \"now\") **\n");
 	exit(1);
 }
 
@@ -602,16 +600,6 @@ int main(int argc, char **argv)
   		strcat(message, argv[c]);
   		strcat(message, " ");
 	}
-
-	if (message[0]) {
-		char *opts = malloc(strlen(message));
-		strncpy(opts, message, strlen(message)-1);
-		opts[strlen(message)-1] = 0;
-		if (opts) {
-			init_setenv("INIT_OPTS", opts);
-		}
-	}
-
 	if (message[0]) strcat(message, "\r\n");
 
 	/* See if we want to run or cancel. */
