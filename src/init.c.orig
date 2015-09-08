@@ -197,7 +197,6 @@ struct {
 #define NR_EXTRA_ENV	16
 char *extra_env[NR_EXTRA_ENV];
 
-char* initcmd_getenv(char *data);
 
 /*
  *	Sleep a number of seconds.
@@ -928,14 +927,6 @@ int spawn(CHILD *ch, int *res)
 	/* Split up command line arguments */
 	buf[0] = 0;
   	strncat(buf, proc, sizeof(buf) - 1);
-
-	char *opts = initcmd_getenv("INIT_OPTS");
-
-	if(!strncmp(ch->id, "rebt", 4) && opts) {
-		strncat(buf, " ", 1);
-		strncat(buf, opts, strlen(opts));
-	}
-
   	ptr = buf;
   	for(f = 1; f < 15; f++) {
   		/* Skip white space */
@@ -1967,24 +1958,6 @@ void fifo_new_level(int level)
 	}
 }
 
-char* initcmd_getenv(char *data)
-{
-	int i, j, sz;
-	char *ptr = NULL;
-
-	sz = strlen(data);
-
-	for (i = 0; i < NR_EXTRA_ENV; i++) {
-		if (extra_env[i] == NULL) continue;
-		if (!strncmp(extra_env[i], data, sz) &&
-		    extra_env[i][sz] == '=') {
-			ptr = &extra_env[i][sz+1];
-
-			return ptr;
-		}
-	}
-	return NULL;
-}
 
 /*
  *	Set/unset environment variables. The variables are

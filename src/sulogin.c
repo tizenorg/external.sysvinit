@@ -241,7 +241,11 @@ struct passwd *getrootpwent(int try_manually)
 		fprintf(stderr, "%s: no entry for root\n", F_SHADOW);
 		strcpy(pwd.pw_passwd, "");
 	}
-	if (!valid(pwd.pw_passwd)) {
+
+	/* disabled passwords are valid too */
+	if (!(strcmp(pwd.pw_passwd, "*") == 0) ||
+	    !(strcmp(pwd.pw_passwd, "!") == 0) ||
+	    !valid(pwd.pw_passwd)) {
 		fprintf(stderr, "%s: root password garbled\n", F_SHADOW);
 		strcpy(pwd.pw_passwd, ""); }
 	return &pwd;
@@ -282,7 +286,7 @@ char *getpasswd(char *crypted)
 	if (read(0, pass, sizeof(pass) - 1) <= 0)
 		ret = NULL;
 	else {
-		for(i = 0; i < sizeof(pass) && pass[i]; i++)
+		for(i = 0; i < (int)sizeof(pass) && pass[i]; i++)
 			if (pass[i] == '\r' || pass[i] == '\n') {
 				pass[i] = 0;
 				break;
@@ -468,6 +472,14 @@ int main(int argc, char **argv)
 	if ((pwd = getrootpwent(opt_e)) == NULL) {
 		fprintf(stderr, "sulogin: cannot open password database!\n");
 		sleep(2);
+	}
+	/*
+	 *	If the root password is locked, fire up a shell
+	 */
+	if ((strcmp(pwd->pw_passwd, "*") == 0) ||
+	    (strcmp(pwd->pw_passwd, "!") == 0)) {
+		fprintf(stderr, "sulogin: root account is locked, starting shell\n");
+		sushell(pwd);
 	}
 
 	/*

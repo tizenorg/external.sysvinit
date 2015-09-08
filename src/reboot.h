@@ -7,6 +7,8 @@
  */
 
 #include <sys/reboot.h>
+#include <linux/reboot.h>
+#include <sys/syscall.h>
 
 #ifdef RB_ENABLE_CAD
 #  define BMAGIC_HARD		RB_ENABLE_CAD
